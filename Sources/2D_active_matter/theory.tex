@@ -1,0 +1,15 @@
+\documentclass{article}
+\begin{document}
+
+This is a simulation of the simple model for active turbulence prposed by Wensink et. al. in the paper "Meso-scale turbulence in living fluids". All equations used are based on a normalized form of the model derived by Martin James, Wouter Bos and Michael Wilczek in the paper "Turbulence and turbulent pattern formation in a minimal model for active fluids".
+Taking the curl of the given velocity equation yields a nonlinear partial differential equation for the vorticity $\omega=\vec\nabla\times\vec v$:
+\begin{equation}
+\partial_t\omega + \lambda\left(\vec v\cdot\vec\nabla\right)\omega = -\big(1+\Delta\big)^2\omega -\alpha\omega -\beta\vec\nabla\times\left(\left|\vec v^2\right|\,\vec v\right)
+\end{equation}
+This equation is solved in Fourier space with a Runge-Kutta method of 4th order and an integrating factor.
+Unfortunately, the vorticity equation contains no information about the mean velocity $\langle\vec v\rangle$. One can derive a second partial differential equation to restore the lost information:
+\begin{equation}
+\partial_t\langle\vec v\rangle = -\big(1+\alpha\big)\langle\vec v\rangle -\beta\left\langle\left|\vec v\right|^2\,\vec v\right\rangle
+\end{equation}
+Both are simoultaneously evaluated.
+\end{document}

@@ -552,10 +552,16 @@ int main(int argc, char *argv[])
 		for( int r{0}; r<2*size; ++r )
 		{
 			if( r%(Nx+2)==Nx || r%(Nx+2)==Nx+1 )
-				w_appr[r] = 0.f;
+				w_appr[r] = 0.0f;
 			else
+			{
+				//cout << distribution(generator) << endl;
 				w_appr[r] = distribution(generator);
+			}
+				
 		}
+		
+
 	}
 	else if( initial=="blank" )
 	{
@@ -662,7 +668,10 @@ int main(int argc, char *argv[])
 		cout << "processing the initial condition" << endl;
 		// We transform the initial condition. Now we have complex data, so we
 		// use a pointer to the cuComplex type (w_appr_comp).
+		cout << "val of wappr[200]: " <<w_appr[200]<< endl;
 		cufft_error_func( cufftExecR2C(transf, w_appr, w_appr_comp) );
+		save_func(w_appr_comp, w_save_comp, vx_mean_new, vy_mean_new,
+			              size, 200000000, dt);
 		cuda_error_func( cudaDeviceSynchronize() );
 		
 		// High frequncies (k > 2pi/L * N/2) are misinterpreted by DFT and
@@ -670,6 +679,7 @@ int main(int argc, char *argv[])
 		// and store the result in w_new_comp[].
 		dealiasing_func<<< BLOCK_NUM, BLOCK_SIZE >>>(w_new_comp, w_appr_comp,
 													cutoff, size);
+		cout<< "cutoff[0]: " << cutoff[0] << ", " << "cutoff[10]: " << cutoff[10]<<endl;
 		cuda_error_func( cudaPeekAtLastError() );
 		cuda_error_func( cudaDeviceSynchronize() );
 		
@@ -717,6 +727,7 @@ int main(int argc, char *argv[])
 	// previous simulation is continued.
 	for (; m<=M; ++m)
 	{
+		// cout << "flag0" << endl;
 		// First, the new vorticity (w_new_comp) from the last iteration becomes
 		// the w_old_comp of this iteration, than it is copied to w_appr_comp to
 		// calculate the 1st Runge-Kutta coefficient. In the last step, we begin
@@ -731,6 +742,7 @@ int main(int argc, char *argv[])
 		*vx_mean_appr = *vx_mean_new;
 		*vy_mean_appr = *vy_mean_new;
 		
+		// cout << "flag1" << endl;
 		// We calculate of the 1st Runge-Kutta coefficient and save the current
 		// mean energy.
 		modified_nonl_func(w_appr, w_appr_comp, arr, arr_comp, vx, vx_comp, vy,
@@ -780,6 +792,7 @@ int main(int argc, char *argv[])
 		*vx_mean_appr = lin2_v * ( *vx_mean_old + dt/2 * *nonl_vx );
 		*vy_mean_appr = lin2_v * ( *vy_mean_old + dt/2 * *nonl_vy );
 		
+		// cout << "flag2" << endl;
 		// We calculate the 3rd Runge-Kutta coefficient.
 		nonl_func(w_appr, w_appr_comp, arr, arr_comp, vx, vx_comp, vy, vy_comp,
 		          kx, ky, k_squared, cutoff, nonl_comp, size, dt, transf,
@@ -809,7 +822,7 @@ int main(int argc, char *argv[])
 		reality_func<<< BLOCK_NUM, BLOCK_SIZE >>>(w_new_comp, Nxh, Ny, size);
 		cuda_error_func( cudaPeekAtLastError() );
 		cuda_error_func( cudaDeviceSynchronize() );
-		
+		// cout << "flag3" << endl;
 		// We ad the 4rd coefficient to w_new_comp.
 		integrate_func_4<<< BLOCK_NUM,BLOCK_SIZE >>>(w_new_comp, nonl_comp,
 		                                             size, dt);
@@ -819,7 +832,7 @@ int main(int argc, char *argv[])
 		// Again, we do the same with the mean velocity.
 		*vx_mean_new += dt/6 * *nonl_vx;
 		*vy_mean_new += dt/6 * *nonl_vy;
-		
+		// cout << "flag4" << endl;
 		// We regulary save a snapshots to a binary file.
 		if( m%snap == 0 )
 		{
@@ -859,7 +872,8 @@ int main(int argc, char *argv[])
 			                vx_mean_appr, vy_mean_appr, nonl_vx, nonl_vy );
 			return 1;
 		}
-	}
+		// cout << "flag5" << endl;
+	} // end for time stepping loop
 	
 /******************************************************************************
  * clean-up                                                                   *
@@ -914,7 +928,8 @@ void cutoff_func(float cutoff[], int Nxh, int Ny)
 		else if( x*x + (Ny-y)*(Ny-y) <= R_sq )
 			cutoff[c] = 1;
 		else
-			cutoff[c] = 0;
+			cutoff[c] = 1;
+			// cutoff[c] = 0;
 	}
 }
 
@@ -1258,8 +1273,12 @@ bool save_func(cuComplex w_new_comp[], cuComplex w_save_comp[],
 	// and we copy only once.)
 	cuda_error_func( cudaMemcpy( w_save_comp, w_new_comp, 2*size*sizeof(float),
 	                             cudaMemcpyDeviceToHost ) );
+	cout << w_save_comp[20].x << "," << w_save_comp[20].y;
 	for (int c{0}; c<size; ++c)
+	{
 		data_file << w_save_comp[c].x << "," << w_save_comp[c].y << ",";
+	}
+		
 	data_file << *vx_mean_new << "," << *vy_mean_new;
 	data_file.close();
 	return 0;
@@ -1293,7 +1312,7 @@ void unallocate_func( cufftHandle transf, cufftHandle inv_transf, float vx[],
 	cufft_error_func( cufftDestroy(transf) );
 	cufft_error_func( cufftDestroy(inv_transf) );
 	
-	// W set all pointers to null before freeing the adress they point at.
+	// We set all pointers to null before freeing the adress they point at.
 	w_appr_comp = nullptr;
 	vx_comp = nullptr;
 	vy_comp = nullptr;

@@ -21,4 +21,4 @@ dt_snap:
 initial_condition:
 random 42
 save_directory:
-/new_simulation/snapshots_alpha-08_lambda7
+./

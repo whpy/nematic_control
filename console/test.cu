@@ -15,8 +15,35 @@
 #define BSZ 4
 
 using namespace std;
+typedef struct __session{
+    int Nx;
+    int Ny;
+    float dx;
+    float dy;
+    float alphax;
+    float alphay;
+    float Lx;
+    float Ly;
+    float *kx;
+    float *ky;
+}session;
+
+void session_init(session *s, int Nx, int Ny, float Lx, float Ly, float *kx, float *ky){
+    s->Nx = Nx;
+    s->Ny = Ny;
+    s->Lx = Lx;
+    s->Ly = Ly;
+    s->dx = Lx/Nx;
+    s->dy = Ly/Ny;
+    s->alphax = 2*M_PI/Lx;
+    s->alphay = 2*M_PI/Ly;
+    s->kx = kx;
+    s->ky = ky;
+}
 int Nx = 8;
 int Ny = 8;
+float Lx = 2*M_PI;
+float Ly = 2*M_PI;
 float dx = 2*M_PI/Nx;
 float dy = 2*M_PI/Ny;
 dim3 dimGrid  (int((Nx-0.5)/BSZ) + 1, int((Ny-0.5)/BSZ) + 1);
@@ -54,17 +81,30 @@ int main(){
     float *ky;
     cuda_error_func(cudaMallocManaged( &kx, sizeof(float)*(Nx/2+1)));
     cuda_error_func(cudaMallocManaged( &ky, sizeof(float)*Ny));
-    for (int i=0; i < Nx; i++) {
-        kx[i] = 2*M_PI * i;
+    float alpha = 2*M_PI;
+    for (int i = 0; i < Nx/2; i++) {
+        kx[i] = i*2*M_PI/alpha;
     }
-    for (int j=0; j < Ny/2+1; j++) {
-        if(j < Ny/2+1){
-            ky[j] = 2*M_PI * j;
-        }
-        else{
-            ky[j] = 2*M_PI * (j-Ny);
-        }
+    for (int i=Nx/2+1; i<Nx; i++){
+        kx[i] = (i-Nx)*2*M_PI/alpha;
     }
+
+    for (int j=0; j<Ny/2; j++){
+        ky[j] = j*2*M_PI/alpha;
+    }
+    for (int j=Ny/2+1; j<Ny; j++){
+        ky[j] = (j-Ny)*2*M_PI/alpha;
+    }
+    session s;
+    session_init(&s,Nx,Ny,Lx,Ly,kx,ky);
+    cout << "Lx: " << s.Lx << endl <<
+    "Ly: " << s.Ly << endl <<
+    "Nx: " << s.Nx << endl <<
+    "Ny: " << s.Ny << endl <<
+    "dx: " << s.dx << endl <<
+    "dy: " << s.dy << endl <<
+    "alphax: " << s.alphax << endl <<
+    "alphay: " << s.alphay << endl;
     cuComplex* ctest;
     
     cufftHandle plan;

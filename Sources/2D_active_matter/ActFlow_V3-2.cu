@@ -914,7 +914,7 @@ void cutoff_func(float cutoff[], int Nxh, int Ny)
 		else if( x*x + (Ny-y)*(Ny-y) <= R_sq )
 			cutoff[c] = 1;
 		else
-			cutoff[c] = 0;
+			cutoff[c] = 1;
 	}
 }
 

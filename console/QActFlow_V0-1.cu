@@ -190,8 +190,8 @@ __global__ void yDerivD(cuComplex *ft, cuComplex *dft, float* ky, int Nxh, int N
         dft[index] = ft[index]*im()*ky[j];
     }__global__
 }
-inline void yDeriv(cuComplex *ft, cuComplex *dft, Mesh &mesh){
-    yDerivD<<<dimGrid, dimBlock>>>(ft,dft,mesh.ky,mesh.Nxh, mesh.Ny);
+inline void yDeriv(cuComplex *ft, cuComplex *dft, Mesh *mesh){
+    yDerivD<<<dimGrid, dimBlock>>>(ft,dft,mesh->ky,mesh->Nxh, mesh->Ny);
     cuda_error_func( cudaPeekAtLastError() );
 	cuda_error_func( cudaDeviceSynchronize() );
 }
@@ -280,7 +280,8 @@ void r1nonl_funcD(float* r1nonl, float* r1, float* r2, float* w, float* u, float
 inline void r1nonl_func(field r1nonl, field r1nonl_appr, field r1, field r2, field w, 
                         field u, field v, field S, float lambda, float cn, float Pe){
     // non-linear for r1: 
-    // \lambda S\frac{\partial u}{\partial x}  + (-\omega_z* r2) + (-u*D_x\omega_z - v*D_y\omega_z) + (-cn^2/Pe *S^2*r1)
+    // \lambda S\frac{\partial u}{\partial x}  + (-1* \omega_z* r2) + (-cn^2/Pe *S^2*r1)
+    // + (-1* u* D_x\omega_z) + (-1*v*D_y(\omega_z))
     int Nx = r1.mesh->Nx;
     int Ny = r1.mesh->Ny;
 
@@ -303,8 +304,33 @@ inline void r1nonl_func(field r1nonl, field r1nonl_appr, field r1, field r2, fie
     FldAdd<<<dimGrid, dimBlock>>>(r1nonl.phys, r1nonl_appr.phys, 1., 1., r1nonl.phys, Nx, Ny);
 
     //(-cn^2/Pe *S^2*r1)
+    // r1nonl_appr.phys = -1*cn^2/Pe*S*S
     FldMul<<<dimGrid, dimBlock>>>(S.phys, S.phys, -1.*cn*cn/Pe, r1nonl_appr.phys, Nx, Ny);
+    // r1nonl_appr.phys = -1*cn^2/Pe*S*S*r1
     FldMul<<<dimGrid, dimBlock>>>(r1nonl_appr.phys, r1.phys, 1.f, r1nonl_appr.phys, Nx, Ny);
+    // r1nonl.phys = \lambda S\frac{\partial u}{\partial x}  + (-\omega_z* r2) + (-1*cn^2/Pe*S*S*r1)
+    FldAdd<<<dimGrid, dimBlock>>>(r1nonl.phys, r1nonl_appr.phys, 1., 1., r1nonl.phys, Nx, Ny);
+    cuda_error_func( cudaPeekAtLastError() );
+    cuda_error_func( cudaDeviceSynchronize() );
+
+    //(-u*D_x(\omega_z))
+    // r1nonl_appr.spec = i*kx*w
+    xDeriv(w.spec, r1nonl_appr.spec, w.mesh);
+    // r1nonl_appr.phys = D_x(w)
+    BwdTrans(r1nonl_appr.mesh,r1nonl_appr.spec, r1nonl_appr.phys);
+    // r1nonl_appr.phys = -1*r1nonl_appr.phys*u(x,y) = -1*D_x(w)*u(x,y)
+    FldMul(r1nonl_appr.phys, u.phys, -1.f, r1nonl_appr.phys, Nx, Ny);
+    // r1nonl.phys =
+    // \lambda S\frac{\partial u}{\partial x}  + (-\omega_z* r2) + (-1*cn^2/Pe*S*S*r1) 
+    // + (-1*D_x(w)*u(x,y))
+    FldAdd(r1nonl.phys, r1nonl_appr.phys, 1.0, 1.0, r1nonl.phys, Nx, Ny);
+
+    //(-1*v*D_y(\omega_z))
+    // r1nonl_appr.spec = i*ky*w
+    yDeriv(w.spec, r1nonl_appr.spec, w.mesh);
+
+
+
 
 }
 __global__ void r2nonl_funcD(cuComplex *, cuComplex *);

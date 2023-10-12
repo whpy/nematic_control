@@ -197,7 +197,17 @@ inline void yDeriv(cuComplex *ft, cuComplex *dft, Mesh *mesh){
 }
 
 // maintain the symmetry of only k = 0 wavenumber
-__global__ void reality_func(cuComplex *ft);
+__global__ void reality_func(cuComplex *spec, int Nxh, int Ny){
+    int i = blockIdx.x * BSZ + threadIdx.x;
+    int j = blockIdx.y * BSZ + threadIdx.y;
+    int index = j*Nxh + i;
+    cuComplex mean_value{ 0.f, 0.f };
+    if(j<Ny && i == 0){
+        mean_value = 0.5f * ( spec[index] + cuConjf(spec[Nxh*Ny-index]) );
+        spec[index] = mean_value;
+		spec[Nxh*Ny-index] = cuConjf(mean_value);
+    }
+}
 //calculate the frequently used laplacian term in non-linear function
 __global__ void laplacian_funcD(cuComplex *ft, cuComplex *lft, int Nxh, int Ny, float* k_squared){
     int i = blockIdx.x * BSZ + threadIdx.x;
@@ -275,8 +285,6 @@ void r1nonl_funcD(float* r1nonl, float* r1, float* r2, float* w, float* u, float
     }
 }
 
-
-
 inline void r1nonl_func(field r1nonl, field r1nonl_appr, field r1, field r2, field w, 
                         field u, field v, field S, float lambda, float cn, float Pe){
     // non-linear for r1: 
@@ -328,11 +336,170 @@ inline void r1nonl_func(field r1nonl, field r1nonl_appr, field r1, field r2, fie
     //(-1*v*D_y(\omega_z))
     // r1nonl_appr.spec = i*ky*w
     yDeriv(w.spec, r1nonl_appr.spec, w.mesh);
+    // r1nonl_appr.phys = D_y(w)
+    BwdTrans(r1nonl_appr.mesh,r1nonl_appr.spec, r1nonl_appr.phys);
+    // r1nonl_appr.phys = -1*r1nonl_appr.phys*v(x,y) = -1*D_y(w)*v(x,y)
+    FldMul(r1nonl_appr.phys, v.phys, -1.f, r1nonl_appr.phys, Nx, Ny);
+    // r1nonl.phys = r1nonl.phys + r1nonl_appr.phys = 
+    // \lambda S\frac{\partial u}{\partial x}  + (-\omega_z* r2) + (-1*cn^2/Pe*S*S*r1) 
+    // + (-1*D_x(w)*u(x,y)) + (-1*v*D_y(\omega_z))
+    FldAdd(r1nonl.phys, r1nonl_appr.phys, 1.0, 1.0, r1nonl.phys, Nx, Ny);
 
-
-
-
+    // the spectral of r1 nonlinear term is calculated here based on the physical value
+    // that evaluated before.
+    FwdTrans(r1nonl.mesh, r1nonl.phys, r1nonl.spec);
+    cuda_error_func( cudaPeekAtLastError() );
+    cuda_error_func( cudaDeviceSynchronize());
 }
+
+inline void r1nonl_func(field r1nonl, field r1nonl_appr, field r1, field r2, field w, 
+                        field u, field v, field S, float lambda, float cn, float Pe){
+    // non-linear for r1: 
+    // \lambda*S*D_x(u)  + (-1* \omega_z* r2) + (-cn^2/Pe *S^2*r1)
+    // + (-1* u* D_x(r1)) + (-1*v*D_y(r1))
+    int Nx = r1.mesh->Nx;
+    int Ny = r1.mesh->Ny;
+
+    // \lambda S\frac{\partial u}{\partial x}
+    //nonl1_appr.spec = \partial_x u
+    xDeriv(u.spec, r1nonl_appr.spec, r1nonl.mesh);
+    //nonl1_appr.phys = \partial_x u
+    BwdTrans(r1nonl.mesh, r1nonl_appr.spec, r1.phys);
+    // r1nonl.phys = \lambda*S(x,y) * r1nonl_appr = \lambda*S(x,y) * \partial_x u(x,y) 
+    FldMul<<<dimGrid, dimBlock>>>(r1nonl_appr.phys, S.phys, lambda, r1nonl.phys, Nx, Ny);
+    cuda_error_func( cudaPeekAtLastError() );
+    cuda_error_func( cudaDeviceSynchronize() );
+
+    // (-\omega_z* r2)
+    // r1nonl_appr.phys = -1*\omega*r2
+    FldMul<<<dimGrid, dimBlock>>>(w.phys, r2.phys, -1.0, r1nonl_appr.phys, Nx, Ny);
+    cuda_error_func( cudaPeekAtLastError() );
+    cuda_error_func( cudaDeviceSynchronize() );
+    // r1nonl.phys = \lambda*S(x,y) * \partial_x u(x,y) + (-\omega_z* r2)
+    FldAdd<<<dimGrid, dimBlock>>>(r1nonl.phys, r1nonl_appr.phys, 1., 1., r1nonl.phys, Nx, Ny);
+
+    //(-cn^2/Pe *S^2*r1)
+    // r1nonl_appr.phys = -1*cn^2/Pe*S*S
+    FldMul<<<dimGrid, dimBlock>>>(S.phys, S.phys, -1.*cn*cn/Pe, r1nonl_appr.phys, Nx, Ny);
+    // r1nonl_appr.phys = -1*cn^2/Pe*S*S*r1
+    FldMul<<<dimGrid, dimBlock>>>(r1nonl_appr.phys, r1.phys, 1.f, r1nonl_appr.phys, Nx, Ny);
+    // r1nonl.phys = \lambda S\frac{\partial u}{\partial x}  + (-\omega_z* r2) + (-1*cn^2/Pe*S*S*r1)
+    FldAdd<<<dimGrid, dimBlock>>>(r1nonl.phys, r1nonl_appr.phys, 1., 1., r1nonl.phys, Nx, Ny);
+    cuda_error_func( cudaPeekAtLastError() );
+    cuda_error_func( cudaDeviceSynchronize() );
+
+    //(-u*D_x(r1))
+    // r1nonl_appr.spec = i*kx*w
+    xDeriv(r1.spec, r1nonl_appr.spec, r1.mesh);
+    // r1nonl_appr.phys = D_x(r1)
+    BwdTrans(r1nonl_appr.mesh,r1nonl_appr.spec, r1nonl_appr.phys);
+    // r1nonl_appr.phys = -1*r1nonl_appr.phys*u(x,y) = -1*D_x(r1)*u(x,y)
+    FldMul(r1nonl_appr.phys, u.phys, -1.f, r1nonl_appr.phys, Nx, Ny);
+    // r1nonl.phys =
+    // \lambda S\frac{\partial u}{\partial x}  + (-\omega_z* r2) + (-1*cn^2/Pe*S*S*r1) 
+    // + (-1*D_x(w)*u(x,y))
+    FldAdd(r1nonl.phys, r1nonl_appr.phys, 1.0, 1.0, r1nonl.phys, Nx, Ny);
+
+    //(-1*v*D_y(r1))
+    // r1nonl_appr.spec = i*ky*w
+    yDeriv(r1.spec, r1nonl_appr.spec, r1.mesh);
+    // r1nonl_appr.phys = D_y(w)
+    BwdTrans(r1nonl_appr.mesh,r1nonl_appr.spec, r1nonl_appr.phys);
+    // r1nonl_appr.phys = -1*r1nonl_appr.phys*v(x,y) = -1*D_y(w)*v(x,y)
+    FldMul(r1nonl_appr.phys, v.phys, -1.f, r1nonl_appr.phys, Nx, Ny);
+    // r1nonl.phys = r1nonl.phys + r1nonl_appr.phys = 
+    // \lambda S\frac{\partial u}{\partial x}  + (-\omega_z* r2) + (-1*cn^2/Pe*S*S*r1) 
+    // + (-1*D_x(w)*u(x,y)) + (-1*v*D_y(\omega_z))
+    FldAdd(r1nonl.phys, r1nonl_appr.phys, 1.0, 1.0, r1nonl.phys, Nx, Ny);
+
+    // the spectral of r1 nonlinear term is calculated here based on the physical value
+    // that evaluated before.
+    FwdTrans(r1nonl.mesh, r1nonl.phys, r1nonl.spec);
+    cuda_error_func( cudaPeekAtLastError() );
+    cuda_error_func( cudaDeviceSynchronize());
+}
+
+inline void r2nonl_func(field r2nonl, field r2nonl_appr, field r1, field r2, field w, 
+                        field u, field v, field S, float lambda, float cn, float Pe){
+    // non-linear for r1: 
+    // \lambda* S* 1/2* (D_x(v)+D_y(u)) + (\omega_z* r1) + (-cn^2/Pe *S^2*r2)
+    // + (-1* u* D_x(r2))) + (-1*v*D_y(r2))
+    int Nx = r2nonl.mesh->Nx;
+    int Ny = r2nonl.mesh->Ny;
+
+    // \lambda* S* 1/2* (D_x(v))
+    //nonl1_appr.spec = \partial_x u
+    xDeriv(v.spec, r2nonl_appr.spec, r2nonl.mesh);
+    //nonl1_appr.phys = \partial_x u
+    BwdTrans(r2nonl.mesh, r2nonl_appr.spec, r2.phys);
+    // r1nonl.phys = \lambda*S(x,y) * r1nonl_appr = \lambda*S(x,y) * \partial_x u(x,y) 
+    FldMul<<<dimGrid, dimBlock>>>(r2nonl_appr.phys, S.phys, lambda/2, r2nonl.phys, Nx, Ny);
+    cuda_error_func( cudaPeekAtLastError() );
+    cuda_error_func( cudaDeviceSynchronize() );
+
+    // \lambda* S* 1/2 *(D_y(u))
+    //nonl1_appr.spec = \partial_x u
+    yDeriv(u.spec, r2nonl_appr.spec, r2nonl.mesh);
+    //nonl1_appr.phys = \partial_x u
+    BwdTrans(r2nonl.mesh, r2nonl_appr.spec, r2.phys);
+    // r1nonl.phys = \lambda*S(x,y) * r1nonl_appr = \lambda*S(x,y) * \partial_x u(x,y) 
+    FldMul<<<dimGrid, dimBlock>>>(r2nonl_appr.phys, S.phys, lambda/2, r2nonl.phys, Nx, Ny);
+    cuda_error_func( cudaPeekAtLastError() );
+    cuda_error_func( cudaDeviceSynchronize() );
+
+    // (\omega_z* r1)
+    // r1nonl_appr.phys = -1*\omega*r2
+    FldMul<<<dimGrid, dimBlock>>>(w.phys, r2.phys, -1.0, r2nonl_appr.phys, Nx, Ny);
+    cuda_error_func( cudaPeekAtLastError() );
+    cuda_error_func( cudaDeviceSynchronize() );
+    // r1nonl.phys = \lambda*S(x,y) * \partial_x u(x,y) + (-\omega_z* r2)
+    FldAdd<<<dimGrid, dimBlock>>>(r2nonl.phys, r2nonl_appr.phys, 1., 1., r2nonl.phys, Nx, Ny);
+
+    //(-cn^2/Pe *S^2*r1)
+    // r1nonl_appr.phys = -1*cn^2/Pe*S*S
+    FldMul<<<dimGrid, dimBlock>>>(S.phys, S.phys, -1.*cn*cn/Pe, r2nonl_appr.phys, Nx, Ny);
+    // r1nonl_appr.phys = -1*cn^2/Pe*S*S*r1
+    FldMul<<<dimGrid, dimBlock>>>(r2nonl_appr.phys, r1.phys, 1.f, r2nonl_appr.phys, Nx, Ny);
+    // r1nonl.phys = \lambda S\frac{\partial u}{\partial x}  + (-\omega_z* r2) + (-1*cn^2/Pe*S*S*r1)
+    FldAdd<<<dimGrid, dimBlock>>>(r2nonl.phys, r2nonl_appr.phys, 1., 1., r2nonl.phys, Nx, Ny);
+    cuda_error_func( cudaPeekAtLastError() );
+    cuda_error_func( cudaDeviceSynchronize() );
+
+    //(-u*D_x(\omega_z))
+    // r1nonl_appr.spec = i*kx*w
+    xDeriv(w.spec, r2nonl_appr.spec, w.mesh);
+    // r1nonl_appr.phys = D_x(w)
+    BwdTrans(r2nonl_appr.mesh,r2nonl_appr.spec, r2nonl_appr.phys);
+    // r1nonl_appr.phys = -1*r1nonl_appr.phys*u(x,y) = -1*D_x(w)*u(x,y)
+    FldMul(r2nonl_appr.phys, u.phys, -1.f, r2nonl_appr.phys, Nx, Ny);
+    // r1nonl.phys =
+    // \lambda S\frac{\partial u}{\partial x}  + (-\omega_z* r2) + (-1*cn^2/Pe*S*S*r1) 
+    // + (-1*D_x(w)*u(x,y))
+    FldAdd(r2nonl.phys, r2nonl_appr.phys, 1.0, 1.0, r2nonl.phys, Nx, Ny);
+
+    //(-1*v*D_y(\omega_z))
+    // r1nonl_appr.spec = i*ky*w
+    yDeriv(w.spec, r2nonl_appr.spec, w.mesh);
+    // r1nonl_appr.phys = D_y(w)
+    BwdTrans(r2nonl_appr.mesh,r2nonl_appr.spec, r2nonl_appr.phys);
+    // r1nonl_appr.phys = -1*r1nonl_appr.phys*v(x,y) = -1*D_y(w)*v(x,y)
+    FldMul(r2nonl_appr.phys, v.phys, -1.f, r2nonl_appr.phys, Nx, Ny);
+    // r1nonl.phys = r1nonl.phys + r1nonl_appr.phys = 
+    // \lambda S\frac{\partial u}{\partial x}  + (-\omega_z* r2) + (-1*cn^2/Pe*S*S*r1) 
+    // + (-1*D_x(w)*u(x,y)) + (-1*v*D_y(\omega_z))
+    FldAdd(r2nonl.phys, r2nonl_appr.phys, 1.0, 1.0, r2nonl.phys, Nx, Ny);
+
+    // the spectral of r1 nonlinear term is calculated here based on the physical value
+    // that evaluated before.
+    FwdTrans(r2nonl.mesh, r2nonl.phys, r2nonl.spec);
+    cuda_error_func( cudaPeekAtLastError() );
+    cuda_error_func( cudaDeviceSynchronize());
+}
+
+__global__ void r2nonl_func(field r1nonl, field r1nonl_appr, field r1, field r2, field w, 
+                        field u, field v, field S, float lambda, float cn, float Pe){
+}
+
 __global__ void r2nonl_funcD(cuComplex *, cuComplex *);
 __global__ void wnonl_funcD(cuComplex *, cuComplex *);
 
@@ -444,7 +611,7 @@ int main(){
     //variable field in the future
     field alpha(&mesh); 
 
-    // auxiliary fields
+    // the auxiliary fields
     // the velocity field u, v
     // their association with \omega_z is:
     // \hat{u} = -k_y/(|k|^2)*hat{\omega_z}, \hat{v} = k_x/(|k|^2)*hat{\omega_z)
@@ -456,6 +623,8 @@ int main(){
     field wnonl(&mesh), wnonlappr(&mesh);
     // the s field
     field S(&mesh);
+    // the stress tensor fields
+    field p11(&mesh), p12(&mesh), p21(&mesh);
 
 
 

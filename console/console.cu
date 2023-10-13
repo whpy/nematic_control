@@ -76,11 +76,12 @@ int main(){
             }
         }
     }
-    print_func(spec, Nxh, Ny);
+    void (*fp)(void) = hello1D;
     cout << "after symmetry." <<endl;
     reality_func<<<dimGrid, dimBlock>>>(spec, Nxh, Ny);
     cudaDeviceSynchronize();
     print_func(spec, Nxh, Ny);
-    
+    fp<<<1,16>>>();
+    cudaDeviceReset();
     return 0;
 }

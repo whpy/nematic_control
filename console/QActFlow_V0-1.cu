@@ -200,7 +200,15 @@ void SpecAdd(cuComplex* spa, cuComplex* spb, float a, float b, cuComplex* spc, i
         spc[index] = a* spa[index] + b* spb[index];
     }
 }
-
+__global__
+void SpecAdd(float a, cuComplex* spa, float b, cuComplex* spb, cuComplex* spc, int Nxh, int Ny){
+    int i = blockIdx.x * BSZ + threadIdx.x;
+    int j = blockIdx.y * BSZ + threadIdx.y;
+    int index = j*Nxh + i;
+    if(i<Nxh && j<Ny){
+        spc[index] = a* spa[index] + b* spb[index];
+    }
+}
 __global__ void xDerivD(cuComplex *ft, cuComplex *dft, float* kx, int Nxh, int Ny){
     int i = blockIdx.x * BSZ + threadIdx.x;
     int j = blockIdx.y * BSZ + threadIdx.y;
@@ -465,9 +473,30 @@ inline void wnonl_func(field wnonl, field wnonl_appr, field p11, field p12, fiel
     p12nonl_func(p12, wnonl_appr, r1, r2, S, alpha, lambda, cn); 
     p21nonl_func(p21, wnonl_appr, r1, r2, S, alpha, lambda, cn); 
 
+    // wnonl_appr.spec = D_x(p12)
     xDeriv(p12.spec, wnonl_appr.spec, p12.mesh);
-    xDeriv(wnonl_appr.spec, wnonl_appr.spec, wnonl_appr.mesh);
-    BwdTrans( wnonl_appr.mesh, wnonl_appr.spec, wnonl.phys);
+    // wnonl.spec = D^2_xx(p12)
+    xDeriv(wnonl_appr.spec, wnonl.spec, wnonl_appr.mesh);
+    
+    // wnonl_appr.spec = D_x(p11)
+    xDeriv(p11.spec, wnonl_appr.spec, p11.mesh);
+    // wnonl_appr.spec = D_y(wnonl_appr.spec) = D^2_xy(p11)
+    yDeriv(wnonl_appr.spec, wnonl_appr.spec, wnonl_appr.mesh);
+    // wnonl.spec = D^2_xx(p12) - 2*wnonl_appr.spec = D^2_xx(p12) - 2*D^2_xy(p11)
+    SpecAdd<<<dimGrid, dimBlock>>>(1., wnonl.spec, -2., wnonl_appr.spec, 
+    wnonl.spec, wnonl.mesh->Nxh, wnonl.mesh->Ny);
+
+    // wnonl_appr.spec = D_y(p21)
+    yDeriv(p21.spec, wnonl_appr.spec, p21.mesh);
+    // wnonl.spec = D^2_yy(p12)
+    yDeriv(wnonl_appr.spec, wnonl.spec, wnonl_appr.mesh);
+    // wnonl.spec = D^2_xx(p12) - 2*D^2_xy(p11) - wnonl_appr.spec 
+    // = D^2_xx(p12) - 2*D^2_xy(p11) - D^2_yy(p21)
+    SpecAdd<<<dimGrid, dimBlock>>>(1., wnonl.spec, -1., wnonl_appr.spec, 
+    wnonl.spec, wnonl.mesh->Nxh, wnonl.mesh->Ny);
+
+    FldMul<<<dimBlock, dimBlock>>>(alpha.ph, 
+    
 }
 // calculate the cross term in pij where Cross(r1,r2) = 2*(r2*\Delta(r1) + r1*\Delta(r2))
 inline void pCross_func(field appr, field r1, field r2, field S, field alpha, float lambda){

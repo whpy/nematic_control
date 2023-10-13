@@ -34,6 +34,15 @@ void hello2(){
     hello2D<<<1,32>>>();
 }
 
+__global__
+void SpecAdd(float a, cuComplex* spa, float b, cuComplex* spb, cuComplex* spc, int Nxh, int Ny){
+    int i = blockIdx.x * BSZ + threadIdx.x;
+    int j = blockIdx.y * BSZ + threadIdx.y;
+    int index = j*Nxh + i;
+    if(i<Nxh && j<Ny){
+        spc[index] = a* spa[index] + b* spb[index];
+    }
+}
 __global__ void reality_func(cuComplex *spec, int Nxh, int Ny){
     int i = blockIdx.x * BSZ + threadIdx.x;
     int j = blockIdx.y * BSZ + threadIdx.y;
@@ -58,8 +67,8 @@ void print_func(cuComplex *spec, int Nxh, int Ny){
 int main(){
     cuComplex *spec;
     
-    int Ny = 16;
-    int Nx = 16;
+    int Ny = 8;
+    int Nx = 8;
     int Nxh = Nx/2+1;
     dim3 dimGrid  (int((Nx-0.5)/BSZ) + 1, int((Ny-0.5)/BSZ) + 1);
     dim3 dimBlock (BSZ, BSZ); 
@@ -76,12 +85,21 @@ int main(){
             }
         }
     }
-    void (*fp)(void) = hello1D;
-    cout << "after symmetry." <<endl;
-    reality_func<<<dimGrid, dimBlock>>>(spec, Nxh, Ny);
-    cudaDeviceSynchronize();
+    cout << "original spec: " << endl;
     print_func(spec, Nxh, Ny);
-    fp<<<1,16>>>();
-    cudaDeviceReset();
+    SpecAdd<<<dimGrid, dimBlock>>>(1.f, spec, 1.f, spec, spec, Nxh, Ny);
+    cudaDeviceSynchronize();
+    cout << endl;
+    cout << "add function test:" <<endl;
+    print_func(spec, Nxh, Ny);
+    // void (*fp)(void) = hello1D;
+    // cout << "after symmetry." <<endl;
+    // reality_func<<<dimGrid, dimBlock>>>(spec, Nxh, Ny);
+    // cudaDeviceSynchronize();
+    // print_func(spec, Nxh, Ny);
+    // fp<<<1,16>>>();
+    // cudaDeviceReset();
+    // dim3 tmp;
+    // tmp = dim3(int((Nx-0.5)/BSZ) + 1, int((Ny-0.5)/BSZ) + 1);
     return 0;
 }

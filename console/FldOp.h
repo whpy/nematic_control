@@ -42,12 +42,89 @@ void SpecAdd(cuComplex* spa, cuComplex* spb, float a, float b, cuComplex* spc, i
 __global__
 void SpecAdd(float a, cuComplex* spa, float b, cuComplex* spb, cuComplex* spc, int Nxh, int Ny);
 
-__global__ void xDerivD(cuComplex *ft, cuComplex *dft, float* kx, int Nxh, int Ny);
+__global__ 
+void xDerivD(cuComplex *ft, cuComplex *dft, float* kx, int Nxh, int Ny);
 inline void xDeriv(cuComplex *ft, cuComplex *dft, Mesh *mesh);
 
+__global__ 
+void yDerivD(cuComplex *ft, cuComplex *dft, float* ky, int Nxh, int Ny);
 inline void yDeriv(cuComplex *ft, cuComplex *dft, Mesh *mesh);
-__global__ void yDerivD(cuComplex *ft, cuComplex *dft, float* ky, int Nxh, int Ny);
 
-__global__ void reality_func(cuComplex *spec, int Nxh, int Ny);
+
+__global__ 
+void reality_func(cuComplex *spec, int Nxh, int Ny);
+
+__global__ 
+void laplacian_funcD(cuComplex *ft, cuComplex *lft, int Nxh, int Ny, float* k_squared);
+inline void laplacian_func(cuComplex *ft, cuComplex *lft, Mesh* mesh);
+
+__global__ 
+void vel_funcD(cuComplex* w_spec, cuComplex* u_spec, cuComplex* v_spec, 
+                            float* k_squared, float* kx, float*ky, int Nxh, int Ny);
+inline void vel_func(field w, field u, field v);
+
+__global__ 
+void S_func(float* r1, float*r2, float* S);
+
+void curr_func(field r1curr, field r2curr, field wcurr, field u, field v, field S);
+
+inline void r1nonl_func(field r1nonl, field r1nonl_appr, field r1, field r2, field w, 
+                        field u, field v, field S, float lambda, float cn, float Pe);
+
+inline void r2nonl_func(field r2nonl, field r2nonl_appr, field r1, field r2, field w, 
+                        field u, field v, field S, float lambda, float cn, float Pe);
+
+inline void wnonl_func(field wnonl, field wnonl_appr, field appr1, field p11, field p12, field p21, field r1, field r2, field w, 
+                        field u, field v, field alpha, field S, float Re, float Er, float cn, float lambda);
+
+inline void pCross_func(field p,field appr, field r1, field r2);
+
+inline void pSingle_func(field p, field appr, field r, field S, field alpha, float lambda);
+
+inline void p11nonl_func(field p11, field appr, field appr1, field r1, field r2, field S, 
+                        field alpha, float lambda, float cn);
+
+inline void p12nonl_func(field p12, field appr, field appr1, field r1, field r2, field S, 
+                        field alpha, float lambda, float cn);
+
+inline void p21nonl_func(field p21, field appr, field appr1, field r1, field r2, field S, 
+                        field alpha, float lambda, float cn);
+
+__global__
+void integrate_func0(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_new,
+                    float* IF, float* IFh, int Nxh, int Ny, float dt);
+
+__global__  
+void integrate_func1(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_new, cuComplex* spec_nonl,
+                    float* IF, float* IFh, int Nxh, int Ny, float dt);
+
+__global__ 
+void integrate_func2(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_new, 
+                        cuComplex* spec_nonl,float* IF, float* IFh, int Nxh, int Ny, float dt);
+
+__global__ 
+void integrate_func3(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_new, 
+                        cuComplex* spec_nonl,float* IF, float* IFh, int Nxh, int Ny, float dt);
+
+__global__ 
+void integrate_func4(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_new, 
+                        cuComplex* spec_nonl,float* IF, float* IFh, int Nxh, int Ny, float dt);
+
+__global__
+void precompute_func(field r1, field r2, field w, field alpha, int Nx, int Ny);
+
+__global__
+void r1lin_func(float* IFr1h, float* IFr1, float* k_squared, float Pe, float cn, float dt);
+
+__global__
+void r2lin_func(float* IFr2h, float* IFr2, float* k_squared, float Pe, float cn, float dt);
+
+__global__
+void wlin_func(float* IFr1h, float* IFr1, float* k_squared, float Re, float cf, float dt);
+
+
+
+
+
 
 #endif

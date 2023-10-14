@@ -14,7 +14,7 @@
 #define M_PI 3.14159265358979323846
 // amount of kernels called, block_size must be n*32
 #define BSZ 16
-
+// updata tested
 using namespace std;
 
 int Nx = 512;

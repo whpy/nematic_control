@@ -3,4 +3,7 @@
 /console/.vscode/
 **/.vscode/
 /Sources/**/test/
-
+**/*.csv
+**/*.exe
+**/*.exp
+**/*.lib

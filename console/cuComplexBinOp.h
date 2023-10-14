@@ -8,7 +8,9 @@
 // This is a work in progress and feature integers only for multiplication.
 // last edited 20th of September 2018
 
-#ifdef CU_COMPLEX_H_
+#ifndef CU_COMPLEX_BINOP_H_
+#define CU_COMPLEX_BINOP_H_
+
 // The complex unit:
 __host__ __device__
 cuComplex im()

@@ -6,6 +6,7 @@
 #include <chrono>
 #include <random>
 
+#include <device_launch_parameters.h>
 #include <cufft.h>
 #include <cuComplex.h>
 #include "cuComplexBinOp.h"
@@ -113,6 +114,50 @@ void unallocate(field *f){
     cudaFree(f->spec);
     delete f;
 }
+/******************************************************************************* 
+ * function predefine                                                          * 
+ *******************************************************************************/
+inline void FwdTrans(Mesh* pmesh, float* phys, cuComplex* spec);
+inline void BwdTrans(Mesh* pmesh, cuComplex* spec, float* phys);
+__global__ void coeff(float *f, int Nx, int Ny);
+
+// __Device: phys field multiplication: pc(x) = C*pa(x,y)*pb(x,y). prefix p denotes physical
+__global__ void FldMul(float* pa, float* pb, float C, float* pc, int Nx, int Ny);
+
+// __Device: phys field addition: pc(x,y) = a*pa(x,y) + b*pb(x,y). prefix p denotes physical
+__global__  void FldAdd(float* pa, float* pb, float a, float b, float* pc, int Nx, int Ny);
+__global__  void FldAdd(float a, float* pa, float b, float* pb, float* pc, int Nx, int Ny);
+
+// divide a factor after transforming from spectral to physical
+__global__ void coeff(float *f, int Nx, int Ny);
+
+__global__
+// set physical field equals to a constant field
+void FldSet(float * pf, float c, int Nx, int Ny);
+
+__global__
+// set two physical field equals
+void FldSet(float * pf, float* c, int Nx, int Ny);
+
+__global__
+void SpecSet(cuComplex * pa, cuComplex* pb, int Nxh, int Ny);
+
+__global__ 
+// spectral addition: spc(k,l) = a*spa(k,l) + b*spb(k,l)
+void SpecAdd(cuComplex* spa, cuComplex* spb, float a, float b, cuComplex* spc, int Nxh, int Ny);
+
+__global__
+void SpecAdd(float a, cuComplex* spa, float b, cuComplex* spb, cuComplex* spc, int Nxh, int Ny);
+
+__global__ void xDerivD(cuComplex *ft, cuComplex *dft, float* kx, int Nxh, int Ny);
+inline void xDeriv(cuComplex *ft, cuComplex *dft, Mesh *mesh);
+
+inline void yDeriv(cuComplex *ft, cuComplex *dft, Mesh *mesh);
+__global__ void yDerivD(cuComplex *ft, cuComplex *dft, float* ky, int Nxh, int Ny);
+
+__global__ void reality_func(cuComplex *spec, int Nxh, int Ny);
+
+
 
 // operators for field solvers
 // divide a factor after transforming from spectral to physical
@@ -124,9 +169,6 @@ __global__ void coeff(float *f, int Nx, int Ny){
         f[index] = f[index]/(Nx*Ny);
     }
 }
-
-__global__
-void cutoff(float *dealias, int Nxh, int Ny);
 
 /******************************************************************************* 
  * operator functions                                                          * 
@@ -181,14 +223,35 @@ void FldAdd(float a, float* pa, float b, float* pb, float* pc, int Nx, int Ny){
     }
 }
 __global__
-void FldZero(float * pf, int Nx, int Ny){
+// set physical field equals to a constant field
+void FldSet(float * pf, float c, int Nx, int Ny){
     int i = blockIdx.x * BSZ + threadIdx.x;
     int j = blockIdx.y * BSZ + threadIdx.y;
     int index = j*Nx + i;
     if (i<Nx && j<Ny){
-        pf[index] = 0.f;
+        pf[index] = c;
     }
 }
+__global__
+// set two physical field equals
+void FldSet(float * pf, float* c, int Nx, int Ny){
+    int i = blockIdx.x * BSZ + threadIdx.x;
+    int j = blockIdx.y * BSZ + threadIdx.y;
+    int index = j*Nx + i;
+    if (i<Nx && j<Ny){
+        pf[index] = c[index];
+    }
+}
+__global__
+void SpecSet(cuComplex * pa, cuComplex* pb, int Nxh, int Ny){
+    int i = blockIdx.x * BSZ + threadIdx.x;
+    int j = blockIdx.y * BSZ + threadIdx.y;
+    int index = j*Nxh + i;
+    if (i<Nxh && j<Ny){
+        pa[index] = pb[index];
+    }
+}
+
 
 __global__ 
 // spectral addition: spc(k,l) = a*spa(k,l) + b*spb(k,l)
@@ -465,13 +528,15 @@ inline void r2nonl_func(field r2nonl, field r2nonl_appr, field r1, field r2, fie
 }
 
 
-inline void wnonl_func(field wnonl, field wnonl_appr, field p11, field p12, field p21, field r1, field r2, field w, 
+inline void wnonl_func(field wnonl, field wnonl_appr, field appr1, field p11, field p12, field p21, field r1, field r2, field w, 
                         field u, field v, field alpha, field S, float Re, float Er, float cn, float lambda){
             // wnonl = 1/ReEr * (D^2_xx(p12) - 2*D^2_xy(p11) - D^2_yy(p21))  
             //         + (-1* u*D_x(w)) + (-1* v* D_y(w)) 
-    p11nonl_func(p11, wnonl_appr, r1, r2, S, alpha, lambda, cn); 
-    p12nonl_func(p12, wnonl_appr, r1, r2, S, alpha, lambda, cn); 
-    p21nonl_func(p21, wnonl_appr, r1, r2, S, alpha, lambda, cn); 
+ p11nonl_func(field p11, field appr, field appr1, field r1, field r2, field S, 
+                        field alpha, float lambda, float cn)
+    p11nonl_func(p11, wnonl_appr, appr1, r1, r2, S, alpha, lambda, cn); 
+    p12nonl_func(p12, wnonl_appr, appr1, r1, r2, S, alpha, lambda, cn); 
+    p21nonl_func(p21, wnonl_appr, appr1, r1, r2, S, alpha, lambda, cn); 
 
     // wnonl_appr.spec = D_x(p12)
     xDeriv(p12.spec, wnonl_appr.spec, p12.mesh);
@@ -543,36 +608,71 @@ inline void pCross_func(field p,field appr, field r1, field r2){
     BwdTrans(appr.mesh, appr.spec, appr.phys);
     // appr.phys = -2* r2*\Delta(r1)
     FldMul<<<dimGrid, dimBlock>>>(appr.phys,r2.phys, -2., appr.phys, Nx, Ny);
+    // p.phys = appr.phys + p.phys = -2* r2*\Delta(r1) + 2* r2*\Delta(r1)
     FldAdd<<<dimGrid, dimBlock>>>(1., p.phys, 1., appr.phys, p.phys, Nx, Ny);
     cuda_error_func( cudaDeviceSynchronize() );
     // cross term physical value update successfully
 }
-// the rest term of the pij where Single(ri) = \lambda* S(cn^2*(S^2-1)*ri - \Delta ri) + \alpha*ri
-inline void pSingle_func(field appr, field r, field S, field alpha, float lambda){
+// the rest term of the pij where 
+//Single(ri) = \alpha*ri + \lambda* S*(cn^2*(S^2-1)*ri - \Delta ri) 
+//           = \alpha*ri - \lambda* S* \Delta(ri) 
+//            + \lambda* S*cn^2*(S^2)*ri - \lambda* S*cn^2*ri
+inline void pSingle_func(field p, field appr, field r, field S, field alpha, float lambda){
     // this function only works on the physical space
     int Nx = appr.mesh->Nx;
     int Ny = appr.mesh->Ny;
+    
+    //appr.phys = \alpha* ri
+    FldMul<<<dimGrid, dimBlock>>>(r.phys, alpha.phys, 1.f, appr.phys, Nx, Ny);
+    
+    // -\lambda* S* \Delta(ri)
+    // p.spec = \Delta(r)
+    laplacian_func(p.spec, r.spec , p.mesh);
+    // p.phys = \Delta(r)
+    BwdTrans(p.mesh, p.spec, p.phys);
 
+    // p.phys = -\lambda*\Delta(r)*alpha
+    FldMul<<<dimGrid, dimBlock>>>(p.phys, S.phys, -1*lambda, p.phys, Nx, Ny);
+    // p.phys = p.phys + appr.phys = \alpha* ri -\lambda*\Delta(r)*alpha
+    FldAdd<<<dimGrid, dimBlock>>>(1.f, appr.phys, 1.f p.phys, p.phys, Nx, Ny);
+
+    // \lambda*cn^2*(S^3)*ri
+    // appr.phys = \lambda* cn^2 * S * S
+    FldMul(S.phys, S.phys, lambda*cn*cn, appr.phys, Nx, Ny);
+    // appr.phys =appr.phys* S = \lambda* cn^2 * S * S* S
+    FldMul(appr.phys, S.phys, 1., appr.phys, Nx, Ny);
+    // appr.phys =appr.phys* ri = \lambda* cn^2 * S * S* S* ri
+    FldMul(appr.phys, r.phys, 1., appr.phys, Nx, Ny);
+    // p.phys = p.phys + appr.phys = \alpha* ri -\lambda*\Delta(r)*alpha + \lambda*cn^2*S^3*ri
+    FldAdd<<<dimGrid, dimBlock>>>(1.f, appr.phys, 1.f p.phys, p.phys, Nx, Ny);
+
+    // -\lambda* S*cn^2*ri
+    // appr.phys = -1*\lambda* cn^2 * S * ri
+    FldMul(S.phys, r.phys, -1*lambda*cn*cn, appr.phys, Nx, Ny);
+    // p.phys = p.phys + appr.phys 
+    // = \alpha* ri -\lambda*\Delta(r)*alpha + \lambda*cn^2*S^3*ri + (-1*\lambda*cn^2 *S*ri)
+    FldAdd<<<dimGrid, dimBlock>>>(1.f, appr.phys, 1.f p.phys, p.phys, Nx, Ny);
+    // cross term physical value update successfully
 }
 // p11 = Single(r1)
-inline void p11nonl_func(field p11, field appr, field r1, field r2, field S, 
+inline void p11nonl_func(field p11, field appr, field appr1, field r1, field r2, field S, 
                         field alpha, float lambda, float cn){
     // our strategy is firstly update the phys then finally update the spectral
     // p11.phys = \lambda* S(cn^2*(S^2-1)*r1 - \Delta r1) + \alpha*r1
-    pSingle_func(p11, r1, S, alpha, lambda);
+    pSingle_func(p11, appr, r1, S, alpha, lambda);
     cuda_error_func( cudaDeviceSynchronize() );
     FwdTrans(p11.mesh, p11.phys, p11.spec);
     // p11 spectral update finished
 }
 // p12 = Cross(r1,r2) + Single(r2)
-inline void p12nonl_func(field p12, field appr, field r1, field r2, field S, 
+inline void p12nonl_func(field p12, field appr, field appr1, field r1, field r2, field S, 
                         field alpha, float lambda, float cn){
     int Nx = p12.mesh->Nx;
     int Ny = p12.mesh->Ny;
     // p12.phys = Cross(r1,r2) = 2*(r2*\Delta(r1) - r1*\Delta(r2))
     pCross_func(p12, appr, r1, r2);
     // appr.phys = Single(r2) = \lambda* S(cn^2*(S^2-1)*r2 - \Delta r2) + \alpha*r2
-    pSingle_func(appr, r2, S, alpha, lambda);
+    pSingle_func(appr, appr1, r2, S, alpha, lambda);
     // p12.phys = p12.phys + appr.phys = Cross(r1,r2) + Single(r2)
     FldAdd<<<dimGrid, dimBlock>>>(1., p12.phys, 1., appr.phys, p12.phys, Nx, Ny);
     cuda_error_func( cudaDeviceSynchronize() );
@@ -581,14 +681,14 @@ inline void p12nonl_func(field p12, field appr, field r1, field r2, field S,
     // p12 spectral update finished
 }
 // p22 = -1*Cross(r1,r2) + Single(r2)
-inline void p21nonl_func(field p21, field appr, field r1, field r2, field S, 
+inline void p21nonl_func(field p21, field appr, field appr1, field r1, field r2, field S, 
                         field alpha, float lambda, float cn){
     int Nx = p21.mesh->Nx;
     int Ny = p21.mesh->Ny;
     // p21.phys = Cross(r2,r1) = 2*(r1*\Delta(r2) - r2*\Delta(r1))
     pCross_func(p21, appr, r2, r1);
     // appr.phys = Single(r2) = \lambda* S(cn^2*(S^2-1)*r2 - \Delta r2) + \alpha*r2
-    pSingle_func(appr, r2, S, alpha, lambda);
+    pSingle_func(appr, appr1, r2, S, alpha, lambda);
     // p21.phys = p21.phys + appr.phys = Cross(r2,r1) + Single(r2)
     FldAdd<<<dimGrid, dimBlock>>>(1., p21.phys, 1., appr.phys, p21.phys, Nx, Ny);
     cuda_error_func( cudaDeviceSynchronize() );
@@ -795,7 +895,7 @@ int main(){
     // the s field
     field S(&mesh);
     // the stress tensor fields
-    field p11(&mesh), p12(&mesh), p21(&mesh);
+    field p11(&mesh), p12(&mesh), p21(&mesh), pappr(&mesh);
 
 
 
@@ -805,7 +905,7 @@ int main(){
     float* IFr1, IFr1h, IFr2, IFr2h, IFw, IFwh;
 
     for (int m = 0; m <Ns; m++) {
-
+        
     }
 
 

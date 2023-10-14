@@ -1,4 +1,5 @@
-#ifdef _CUFFT_H_
+#ifndef _CUFFTERR_H_
+#define _CUFFTERR_H_
 // cuFFT API errors, for some reason not defined in cufft.h
 static const char *cufftGetErrorString(cufftResult error)
 {

@@ -6,10 +6,12 @@
 #include <chrono>
 #include <random>
 
+#include <device_launch_parameters.h>
 #include <cufft.h>
 #include <cuComplex.h>
 #include "cuComplexBinOp.h"
 #include "cudaErr.h"
+#include "FldOp.h"
 
 #define M_PI 3.14159265358979323846
 // amount of kernels called, block_size must be n*32

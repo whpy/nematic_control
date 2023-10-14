@@ -15,8 +15,8 @@
 #define BSZ 4
 
 using namespace std;
-int Nx = 8;
-int Ny = 8;
+int Nx = 16;
+int Ny = 16;
 int Nxh = Nx/2+1;
 float Lx = 2*M_PI;
 float Ly = 2*M_PI;
@@ -90,7 +90,7 @@ __global__ void D_init(float *t, int Nx, int Ny, float dx, float dy){
     int j = blockIdx.y * BSZ + threadIdx.y;
     int index = j*Nx + i;
     if(i < Nx && j < Ny){
-        t[index] = sin((float)j*dy);
+        t[index] = 5*sin((float)j*dy) + 3*cos((float)j*dy) - 2*sin((float)i*dx);
     }
 }
 
@@ -232,6 +232,7 @@ int main(){
     // cuda_error_func( cudaPeekAtLastError() );
 	// cuda_error_func( cudaDeviceSynchronize() );
     BwdTrans(inv_transf, tmp, test, Nx, Ny);
+
     cuda_error_func( cudaPeekAtLastError() );
 	cuda_error_func( cudaDeviceSynchronize() );
     cout<< endl;

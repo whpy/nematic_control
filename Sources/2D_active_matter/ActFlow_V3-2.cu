@@ -1233,6 +1233,9 @@ void reality_func(cuComplex w_new_comp[], int Nxh, int Ny, int size)
 	
 	// We make sure that the transformed array keeps the necessary symmetry for
 	// RFT. (The 1st column should consist of pairs of complex conjugates.)
+	// the first column due to the zero value of wavenumver in x, the sequence
+	// degenerates to the trivial one-dimensional dft which need to fulfil symmetry
+	// here size equal to (Nx/2+1)*Ny where the size of wave numbers.
 	cuComplex mean_value{ 0.f, 0.f };
 	for( int y{(index+1)*Nxh}; y<(Ny/2*Nxh); y+=stride*Nxh )
 	{

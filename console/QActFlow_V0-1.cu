@@ -152,7 +152,7 @@ inline void BwdTrans(Mesh* pmesh, cuComplex* spec, float* phys){
 }
 
 __global__
-// phys field multiplication: pc(x) = C*pa(x,y)*pb(x,y). prefix p denotes physical
+// __Device: phys field multiplication: pc(x) = C*pa(x,y)*pb(x,y). prefix p denotes physical
 void FldMul(float* pa, float* pb, float C, float* pc, int Nx, int Ny){
     int i = blockIdx.x * BSZ + threadIdx.x;
     int j = blockIdx.y * BSZ + threadIdx.y;
@@ -162,7 +162,7 @@ void FldMul(float* pa, float* pb, float C, float* pc, int Nx, int Ny){
     }
 }
 __global__ 
-// phys field addition: pc(x,y) = a*pa(x,y) + b*pb(x,y). prefix p denotes physical
+// __Device: phys field addition: pc(x,y) = a*pa(x,y) + b*pb(x,y). prefix p denotes physical
 void FldAdd(float* pa, float* pb, float a, float b, float* pc, int Nx, int Ny){
     int i = blockIdx.x * BSZ + threadIdx.x;
     int j = blockIdx.y * BSZ + threadIdx.y;
@@ -451,11 +451,11 @@ inline void r2nonl_func(field r2nonl, field r2nonl_appr, field r1, field r2, fie
     // r2nonl_appr.phys = D_y(w)
     BwdTrans(r2nonl_appr.mesh,r2nonl_appr.spec, r2nonl_appr.phys);
     // r2nonl_appr.phys = -1*r2nonl_appr.phys*v(x,y) = -1*D_y(w)*v(x,y)
-    FldMul(r2nonl_appr.phys, v.phys, -1.f, r2nonl_appr.phys, Nx, Ny);
+    FldMul<<<dimGrid, dimBlock>>>(r2nonl_appr.phys, v.phys, -1.f, r2nonl_appr.phys, Nx, Ny);
     // r2nonl.phys = r2nonl.phys + r2nonl_appr.phys = 
     // (\lambda/2 *S(x,y) *D_x(u(x,y))) + (\lambda/2 *S(x,y) * D_x(u(x,y))) + (\omega_z* r2) 
     // + (-1*cn^2/Pe*S*S*r2) + (-1*D_x(w)*u(x,y)) + (-1*v*D_y(\omega_z))
-    FldAdd(r2nonl.phys, r2nonl_appr.phys, 1.0, 1.0, r2nonl.phys, Nx, Ny);
+    FldAdd<<<dimGrid, dimBlock>>>(r2nonl.phys, r2nonl_appr.phys, 1.0, 1.0, r2nonl.phys, Nx, Ny);
 
     // the spectral of r1 nonlinear term is calculated here based on the physical value
     // that evaluated before.
@@ -495,21 +495,74 @@ inline void wnonl_func(field wnonl, field wnonl_appr, field p11, field p12, fiel
     SpecAdd<<<dimGrid, dimBlock>>>(1., wnonl.spec, -1., wnonl_appr.spec, 
     wnonl.spec, wnonl.mesh->Nxh, wnonl.mesh->Ny);
 
-    FldMul<<<dimBlock, dimBlock>>>(alpha.ph, 
+    // wnonl_appr.spec = D_x(w)
+    xDeriv(w.spec, wnonl_appr.spec, wnonl_appr.mesh);
+    // wnonl_appr.phys = D_x(w)
+    BwdTrans(wnonl_appr.mesh, wnonl_appr.spec, wnonl_appr.phys);
+    // wnonl_appr.phys = (-1* u* D_x(w))
+    FldMul<<<dimGrid, dimBlock>>>(wnonl_appr.phys, u.phys, -1., wnonl_appr.phys, Nx, Ny);
+    // forward to the spectral: wnonl_appr.spec = Four((-1* u* D_x(w)))
+    FwdTrans(wnonl_appr.mesh, wnonl_appr.phys, wnonl_appr.spec);
+    // wnonl.spec = D^2_xx(p12) - 2*D^2_xy(p11) + wnonl_appr.spec 
+    // = D^2_xx(p12) - 2*D^2_xy(p11) - D^2_yy(p21) + (-1* u* D_x(w))
+    SpecAdd<<<dimGrid, dimBlock>>>(1., wnonl.spec, 1., wnonl_appr.spec, 
+    wnonl.spec, wnonl.mesh->Nxh, wnonl.mesh->Ny);
+
+    // wnonl_appr.spec = D_y(w)
+    yDeriv(w.spec, wnonl_appr.spec, wnonl_appr.mesh);
+    // wnonl_appr.phys = D_y(w)
+    BwdTrans(wnonl_appr.mesh, wnonl_appr.spec, wnonl_appr.phys);
+    // wnonl_appr.phys = (-1* v* D_y(w))
+    FldMul<<<dimGrid, dimBlock>>>(wnonl_appr.phys, v.phys, -1., wnonl_appr.phys, Nx, Ny);
+    // forward to the spectral: wnonl_appr.spec = Four((-1* v* D_y(w)))
+    FwdTrans(wnonl_appr.mesh, wnonl_appr.phys, wnonl_appr.spec);
+    // wnonl.spec = D^2_xx(p12) - 2*D^2_xy(p11) + wnonl_appr.spec 
+    // = D^2_xx(p12) - 2*D^2_xy(p11) - D^2_yy(p21) + (-1* u* D_x(w)) + (-1* v* D_y(w))
+    SpecAdd<<<dimGrid, dimBlock>>>(1., wnonl.spec, 1., wnonl_appr.spec, 
+    wnonl.spec, wnonl.mesh->Nxh, wnonl.mesh->Ny);
+
+    cuda_error_func( cudaDeviceSynchronize() );
+    // here the wnonl has updated sucessfully
     
 }
-// calculate the cross term in pij where Cross(r1,r2) = 2*(r2*\Delta(r1) + r1*\Delta(r2))
-inline void pCross_func(field appr, field r1, field r2, field S, field alpha, float lambda){
+// calculate the cross term in pij where Cross(r1,r2) = 2*(r2*\Delta(r1) - r1*\Delta(r2))
+inline void pCross_func(field appr, field r1, field r2){
 
 }
 // the rest term of the pij where Single(ri) = \lambda* S(cn^2*(S^2-1)*ri - \Delta ri) + \alpha*ri
-inline void pSingle_func(field r1, field S, field alpha, float lambda);
+inline void pSingle_func(field appr, field r, field S, field alpha, float lambda);
 // p11 = Single(r1)
-inline void p11nonl_func(field p11, field appr, field r1, field r2, field S, field alpha, float lambda, float cn);
+inline void p11nonl_func(field p11, field appr, field r1, field r2, field S, 
+                        field alpha, float lambda, float cn){
+    // our strategy is firstly update the phys then finally update the spectral
+    pSingle_func(p11, r1, S, alpha, lambda);
+    FwdTrans(p11.mesh, p11.phys, p11.spec);
+    // p11 spectral update finished
+}
 // p12 = Cross(r1,r2) + Single(r2)
-inline void p12nonl_func(field p12, field appr, field r1, field r2, field S, field alpha, float lambda, float cn);
+inline void p12nonl_func(field p12, field appr, field r1, field r2, field S, 
+                        field alpha, float lambda, float cn){
+    int Nx = p12.mesh->Nx;
+    int Ny = p12.mesh->Ny;
+    // p12.phys = Cross(r1,r2)
+    pCross_func(p12, r1, r2);
+    // appr.phys = Single(r2)
+    pSingle_func(appr, r2, S, alpha, lambda);
+    // p12.phys = p12.phys + appr.phys = Cross(r1,r2) + Single(r2)
+    FldAdd<<<dimGrid, dimBlock>>>(1., p12.phys, 1., appr.phys, p12.phys, Nx, Ny);
+    cuda_error_func( cudaDeviceSynchronize() );
+    FwdTrans(p12.mesh, p12.phys, p12.spec);
+    cuda_error_func( cudaDeviceSynchronize() );
+    // p12 spectral update finished
+}
 // p22 = -1*Cross(r1,r2) + Single(r2)
-inline void p21nonl_func(field p21, field appr, field r1, field r2, field S, field alpha, float lambda, float cn);
+inline void p21nonl_func(field p21, field appr, field r1, field r2, field S, 
+                        field alpha, float lambda, float cn){
+    int Nx = p21.mesh->Nx;
+    int Ny = p21.mesh->Ny;
+    // p12.phys = Cross(r2,r1)
+    pCross_func(p21, r2, r1);
+}
 
 //RK4 integrating steps
 __global__

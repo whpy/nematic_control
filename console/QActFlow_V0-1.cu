@@ -249,7 +249,7 @@ __global__ void reality_func(cuComplex *spec, int Nxh, int Ny){
 		spec[Nxh*Ny-index] = cuConjf(mean_value);
     }
 }
-//calculate the frequently used laplacian term in non-linear function
+//calculate the frequently used laplacian term in non-linear function(only acts on spectral)
 __global__ void laplacian_funcD(cuComplex *ft, cuComplex *lft, int Nxh, int Ny, float* k_squared){
     int i = blockIdx.x * BSZ + threadIdx.x;
     int j = blockIdx.y * BSZ + threadIdx.y;
@@ -258,8 +258,8 @@ __global__ void laplacian_funcD(cuComplex *ft, cuComplex *lft, int Nxh, int Ny, 
         lft[index] = (-1)*k_squared[index]*ft[index];
     }
 }
-inline void laplacian_func(cuComplex *ft, cuComplex *lft, Mesh &mesh){
-    laplacian_funcD<<<dimGrid, dimBlock>>>(ft,lft,mesh.Nxh, mesh.Ny, mesh.k_squared);
+inline void laplacian_func(cuComplex *ft, cuComplex *lft, Mesh* mesh){
+    laplacian_funcD<<<dimGrid, dimBlock>>>(ft,lft,mesh->Nxh, mesh->Ny, mesh->k_squared);
     cuda_error_func( cudaPeekAtLastError() );
 	cuda_error_func( cudaDeviceSynchronize() );
 }
@@ -526,13 +526,34 @@ inline void wnonl_func(field wnonl, field wnonl_appr, field p11, field p12, fiel
     
 }
 // calculate the cross term in pij where Cross(r1,r2) = 2*(r2*\Delta(r1) - r1*\Delta(r2))
-inline void pCross_func(field appr, field r1, field r2){
+inline void pCross_func(field p,field appr, field r1, field r2){
     // this function only works on the physical space
-    laplacian_func
+    int Nx = p.mesh->Nx;
+    int Ny = p.mesh->Ny;
+    //appr.spec = Four(/Delta(r1))
+    laplacian_func(r1.spec,appr.spec,appr.mesh);
+    //appr.phys = /Delta(r1)
+    BwdTrans(appr.mesh, appr.spec, appr.phys);
+    // p.phys = 2* r2*\Delta(r1)
+    FldMul<<<dimGrid, dimBlock>>>(appr.phys,r2.phys, 2., p.phys, Nx, Ny);
 
+    //appr.spec = Four(/Delta(r2))
+    laplacian_func(r1.spec,appr.spec,appr.mesh);
+    //appr.phys = /Delta(r2)
+    BwdTrans(appr.mesh, appr.spec, appr.phys);
+    // appr.phys = -2* r2*\Delta(r1)
+    FldMul<<<dimGrid, dimBlock>>>(appr.phys,r2.phys, -2., appr.phys, Nx, Ny);
+    FldAdd<<<dimGrid, dimBlock>>>(1., p.phys, 1., appr.phys, p.phys, Nx, Ny);
+    cuda_error_func( cudaDeviceSynchronize() );
+    // cross term physical value update successfully
 }
 // the rest term of the pij where Single(ri) = \lambda* S(cn^2*(S^2-1)*ri - \Delta ri) + \alpha*ri
-inline void pSingle_func(field appr, field r, field S, field alpha, float lambda);
+inline void pSingle_func(field appr, field r, field S, field alpha, float lambda){
+    // this function only works on the physical space
+    int Nx = appr.mesh->Nx;
+    int Ny = appr.mesh->Ny;
+
+}
 // p11 = Single(r1)
 inline void p11nonl_func(field p11, field appr, field r1, field r2, field S, 
                         field alpha, float lambda, float cn){
@@ -549,7 +570,7 @@ inline void p12nonl_func(field p12, field appr, field r1, field r2, field S,
     int Nx = p12.mesh->Nx;
     int Ny = p12.mesh->Ny;
     // p12.phys = Cross(r1,r2) = 2*(r2*\Delta(r1) - r1*\Delta(r2))
-    pCross_func(p12, r1, r2);
+    pCross_func(p12, appr, r1, r2);
     // appr.phys = Single(r2) = \lambda* S(cn^2*(S^2-1)*r2 - \Delta r2) + \alpha*r2
     pSingle_func(appr, r2, S, alpha, lambda);
     // p12.phys = p12.phys + appr.phys = Cross(r1,r2) + Single(r2)
@@ -565,7 +586,7 @@ inline void p21nonl_func(field p21, field appr, field r1, field r2, field S,
     int Nx = p21.mesh->Nx;
     int Ny = p21.mesh->Ny;
     // p21.phys = Cross(r2,r1) = 2*(r1*\Delta(r2) - r2*\Delta(r1))
-    pCross_func(p21, r2, r1);
+    pCross_func(p21, appr, r2, r1);
     // appr.phys = Single(r2) = \lambda* S(cn^2*(S^2-1)*r2 - \Delta r2) + \alpha*r2
     pSingle_func(appr, r2, S, alpha, lambda);
     // p21.phys = p21.phys + appr.phys = Cross(r2,r1) + Single(r2)

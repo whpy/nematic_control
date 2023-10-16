@@ -10,27 +10,24 @@
 #include <cuda_runtime.h>
 #include <cufft.h>
 #include <cuComplex.h>
-#include "../cuComplexBinOp.h"
-#include "../cudaErr.h"
-#include "../FldOp.h"
+#include "cuComplexBinOp.h"
+#include "cudaErr.h"
+#include "FldOp.h"
 
 #define M_PI 3.14159265358979323846
 // amount of kernels called, block_size must be n*32
 #define BSZ 16
 
-typedef cuComplex* spec;
-typedef float* phys;
-
 using namespace std;
-int Ns = 10000;
-int Nx = 512*3/2; // same as colin
-int Ny = 512*3/2;
+int Ns = 1000;
+int Nx = 512; // same as colin
+int Ny = 512;
 int Nxh = Nx/2+1;
 float Lx = 2*M_PI;
 float Ly = 2*M_PI;
 float dx = 2*M_PI/Nx;
 float dy = 2*M_PI/Ny;
-float dt = 0.00005; // same as colin
+float dt = 0.005; // same as colin
 dim3 dimGrid  (int((Nx-0.5)/BSZ) + 1, int((Ny-0.5)/BSZ) + 1);
 dim3 dimBlock (BSZ, BSZ); 
 
@@ -122,67 +119,23 @@ void unallocate(field *f){
 /******************************************************************************* 
  * function predefine                                                          * 
  *******************************************************************************/
-// inline void FwdTrans(Mesh* pmesh, float* phys, cuComplex* spec);
-// inline void BwdTrans(Mesh* pmesh, cuComplex* spec, float* phys);
-// __global__ void coeff(float *f, int Nx, int Ny);
-
-// // __Device: phys field multiplication: pc(x) = C*pa(x,y)*pb(x,y). prefix p denotes physical
-// __global__ void FldMul(float* pa, float* pb, float C, float* pc, int Nx, int Ny);
-
-// // __Device: phys field addition: pc(x,y) = a*pa(x,y) + b*pb(x,y). prefix p denotes physical
-// __global__  void FldAdd(float* pa, float* pb, float a, float b, float* pc, int Nx, int Ny);
-// __global__  void FldAdd(float a, float* pa, float b, float* pb, float* pc, int Nx, int Ny);
-
-// // divide a factor after transforming from spectral to physical
-// __global__ void coeff(float *f, int Nx, int Ny);
-
-// __global__
-// // set physical field equals to a constant field
-// void FldSet(float * pf, float c, int Nx, int Ny);
-
-// __global__
-// // set two physical field equals
-// void FldSet(float * pf, float* c, int Nx, int Ny);
-
-// __global__
-// void SpecSet(cuComplex * pa, cuComplex* pb, int Nxh, int Ny);
-
-// __global__ 
-// // spectral addition: spc(k,l) = a*spa(k,l) + b*spb(k,l)
-// void SpecAdd(cuComplex* spa, cuComplex* spb, float a, float b, cuComplex* spc, int Nxh, int Ny);
-
-// __global__
-// void SpecAdd(float a, cuComplex* spa, float b, cuComplex* spb, cuComplex* spc, int Nxh, int Ny);
-
-// __global__ void xDerivD(cuComplex *ft, cuComplex *dft, float* kx, int Nxh, int Ny);
-// inline void xDeriv(cuComplex *ft, cuComplex *dft, Mesh *mesh);
-
-// inline void yDeriv(cuComplex *ft, cuComplex *dft, Mesh *mesh);
-// __global__ void yDerivD(cuComplex *ft, cuComplex *dft, float* ky, int Nxh, int Ny);
-
-// __global__ void reality_func(cuComplex *spec, int Nxh, int Ny);
-
-
 
 // operators for field solvers
 // divide a factor after transforming from spectral to physical
-
+__global__ void coeff(float *f, int Nx, int Ny){
+    int i = blockIdx.x * BSZ + threadIdx.x;
+    int j = blockIdx.y * BSZ + threadIdx.y;
+    int index = j*Nx + i;
+    if(i<Nx && j<Ny){
+        f[index] = f[index]/(Nx*Ny);
+    }
+}
 
 /******************************************************************************* 
  * operator functions                                                          * 
  *******************************************************************************/
 
 //update the spectral space based on the value in physical space
-
-__global__ void coeff(float *f, int Nxh, int Ny){
-    int i = blockIdx.x * BSZ + threadIdx.x;
-    int j = blockIdx.y * BSZ + threadIdx.y;
-    int index = j*Nxh + i;
-    if(i<Nx/3 && j<Ny){
-        f[index] = f[index]/(Nx*Ny);
-    }
-}
-
 inline void FwdTrans(Mesh* pmesh, float* phys, cuComplex* spec){
     cufft_error_func( cufftExecR2C(pmesh->transf, phys, spec));
     cuda_error_func( cudaDeviceSynchronize() );
@@ -202,13 +155,6 @@ inline void BwdTrans(Mesh* pmesh, cuComplex* spec, float* phys){
 	cuda_error_func( cudaDeviceSynchronize() );
 }
 
-__global__ 
-void cutoff(cuComplex* f, int Nxh, int Ny){
-    int i = blockIdx.x * BSZ + threadIdx.x;
-    int j = blockIdx.y * BSZ + threadIdx.y;
-    int index = j*Nxh + i;
-    if ((j > Ny/3)&&(j>=-1*Ny/3+1))
-}
 __global__
 // __Device: phys field multiplication: pc(x) = C*pa(x,y)*pb(x,y). prefix p denotes physical
 void FldMul(float* pa, float* pb, float C, float* pc, int Nx, int Ny){
@@ -268,6 +214,15 @@ void SpecSet(cuComplex * pa, cuComplex* pb, int Nxh, int Ny){
     }
 }
 
+__global__
+void SpecSet(cuComplex * pa, cuComplex c, int Nxh, int Ny){
+    int i = blockIdx.x * BSZ + threadIdx.x;
+    int j = blockIdx.y * BSZ + threadIdx.y;
+    int index = j*Nxh + i;
+    if (i<Nxh && j<Ny){
+        pa[index] = c;
+    }
+}
 
 __global__ 
 // spectral addition: spc(k,l) = a*spa(k,l) + b*spb(k,l)
@@ -792,6 +747,22 @@ __global__ void integrate_func4(cuComplex* spec_old, cuComplex* spec_curr, cuCom
 }
 
 //precomputation
+// __global__
+// void precompute_funcD(float* r1, float* r2, float* w, float* alpha, 
+// int Nx, int Ny, float dx, float dy){
+//     int i = blockIdx.x * BSZ + threadIdx.x;
+//     int j = blockIdx.y * BSZ + threadIdx.y;
+//     int index = j*Nx + i;
+//     float x = i*dx;
+//     float y = j*dy;
+//     float rr = (x-M_PI)*(x-M_PI) + (y-M_PI)*(y-M_PI);
+//     if(i<Nx && j<Ny){
+//         r1[index] = -1*(cos(x)+sin(y));
+//         r2[index] = 0.;
+//         w [index] = cos(x)+sin(y);
+//         alpha[index] = 3.5;
+//     }
+// }
 __global__
 void precompute_funcD(float* r1, float* r2, float* w, float* alpha, 
 int Nx, int Ny, float dx, float dy){
@@ -801,10 +772,11 @@ int Nx, int Ny, float dx, float dy){
     float x = i*dx;
     float y = j*dy;
     float rr = (x-M_PI)*(x-M_PI) + (y-M_PI)*(y-M_PI);
+    float a = -10;
     if(i<Nx && j<Ny){
-        r1[index] = -1*(cos(x)+sin(y));
+        r1[index] = 0.f;
         r2[index] = 0.;
-        w [index] = cos(x)+sin(y);
+        w [index] = sin(x) + cos(y);
         alpha[index] = 3.5;
     }
 }
@@ -819,38 +791,38 @@ void precompute_func(field r1, field r2, field w, field alpha){
 }
 
 __global__
-void r1lin_func(float* IFr1h, float* IFr1, float* k_squared, float Pe, float cn, float dt, int Nx, int Ny)
+void r1lin_func(float* IFr1h, float* IFr1, float* k_squared, float Pe, float cn, float dt, int Nxh, int Ny)
 {
     int i = blockIdx.x * BSZ + threadIdx.x;
     int j = blockIdx.y * BSZ + threadIdx.y;
-    int index = j*Nx + i;
-    if(i<Nx && j<Ny){
+    int index = j*Nxh + i;
+    if(i<Nxh && j<Ny){
         IFr1h[index] = exp((1.f/Pe*(-1.f*k_squared[index]+cn*cn))*dt/2);
         IFr1[index] = exp((1.f/Pe*(-1.f*k_squared[index]+cn*cn))*dt);
     }
 }
 
 __global__
-void r2lin_func(float* IFr2h, float* IFr2, float* k_squared, float Pe, float cn, float dt, int Nx, int Ny)
+void r2lin_func(float* IFr2h, float* IFr2, float* k_squared, float Pe, float cn, float dt, int Nxh, int Ny)
 {
     int i = blockIdx.x * BSZ + threadIdx.x;
     int j = blockIdx.y * BSZ + threadIdx.y;
-    int index = j*Nx + i;
-    if(i<Nx && j<Ny){
+    int index = j*Nxh + i;
+    if(i<Nxh && j<Ny){
         IFr2h[index] = exp((1.f/Pe*(-1.f*k_squared[index]+cn*cn))*dt/2);
         IFr2[index] = exp((1.f/Pe*(-1.f*k_squared[index]+cn*cn))*dt);
     }
 }
 
 __global__
-void wlin_func(float* IFr1h, float* IFr1, float* k_squared, float Re, float cf, float dt, int Nx, int Ny)
+void wlin_func(float* IFwh, float* IFw, float* k_squared, float Re, float cf, float dt, int Nxh, int Ny)
 {
     int i = blockIdx.x * BSZ + threadIdx.x;
     int j = blockIdx.y * BSZ + threadIdx.y;
-    int index = j*Nx + i;
-    if(i<Nx && j<Ny){
-        IFr1h[index] = exp((1.f/Re*(-1.f*(k_squared[index])-cf*cf))*dt/2);
-        IFr1[index] = exp((1.f/Re*(-1.f*(k_squared[index])-cf*cf))*dt);
+    int index = j*Nxh + i;
+    if(i<Nxh && j<Ny){
+        IFwh[index] = exp(1.0*dt/2);
+        IFw[index] = exp(1.0*dt);
     }
 }
 /******************************************************************************* 
@@ -895,7 +867,9 @@ void print_float(float* t, int Nx, int Ny) {
         cout << endl;
     }
 }
-
+// in this unit, we test the RK4, where we consider a simple ODE du/dt = u 
+// where u(x,y,t=0) = cos(x) + sin(y), its analytic solution should be
+// u(x,y,t) = exp(t)*u(x,y,0)
 int main(){
     Mesh mesh(Nx, Ny, Lx, Ly);
     // the variables to be solved, for each variable we distribute four field: 
@@ -935,21 +909,46 @@ int main(){
     cuda_error_func( cudaDeviceSynchronize() );
     field_visual(r1, "r1.csv");
     field_visual(w, "w.csv");
+
     // the linear integrate factors of each field, including whole time step and half time step
-    float* IFr1, IFr1h, IFr2, IFr2h, IFw, IFwh;
-    
-    // w = exp(x^2+y^2) -> L(w) = 2*exp(x^2+y^2) + 2*(x^2+y^2)*exp(x^2+y^2)
-    // firstly obtain the spectral of w
+    float *IFr1, *IFr1h, *IFr2, *IFr2h, *IFw, *IFwh;
+    cudaMallocManaged(&IFw, sizeof(float)*mesh.Nxh*mesh.Ny);
+    cudaMallocManaged(&IFwh, sizeof(float)*mesh.Nxh*mesh.Ny);
+    // set up the integrate factors of w only
+    wlin_func<<<dimGrid,dimBlock>>>(IFwh, IFw, mesh.k_squared,1.,1.,dt,mesh.Nxh, mesh.Ny);
+    // evaluate the spectral at t=0
     FwdTrans(w.mesh, w.phys, w.spec);
-    // calculate the laplacian spectral of w
-    laplacian_func(w.spec, r2.spec, r2.mesh);
-    // in-place operation test 
-    laplacian_func(w.spec, w.spec, w.mesh);
-    // backward
-    BwdTrans(r2.mesh, r2.spec, r2.phys);
-    BwdTrans(w.mesh, w.spec, w.phys);
-    cuda_error_func( cudaDeviceSynchronize() );
-    field_visual(r2, "r2.csv");
-    field_visual(w, "w_lap.csv");
+    // set the nonlear term spectral always 0
+    SpecSet<<<dimGrid,dimBlock>>>(wnonl.spec, make_cuComplex(0.,0.), mesh.Nxh, mesh.Ny);
+
+    cout << "number of steps: " << Ns << endl;
+    cout << "length of time step: " << dt <<endl;
+    int tmpm = 0;
+    if (tmpm%50==0){
+            cout << "t = " << dt*tmpm <<"  ";
+            BwdTrans(w.mesh, w.spec, w.phys);
+            
+            cuda_error_func( cudaDeviceSynchronize() );
+            cout << w.phys[5] << endl;
+            field_visual(w, "w"+to_string(tmpm)+".csv");
+        }
+    for (int m=1; m<Ns; m++){
+        integrate_func0<<<dimGrid,dimBlock>>>(w.spec, wcurr.spec, wnew.spec, IFw, IFwh, mesh.Nxh, mesh.Ny, dt);
+        integrate_func1<<<dimGrid,dimBlock>>>(w.spec, wcurr.spec, wnew.spec, wnonl.spec, IFw, IFwh, mesh.Nxh, mesh.Ny, dt);
+        integrate_func2<<<dimGrid,dimBlock>>>(w.spec, wcurr.spec, wnew.spec, wnonl.spec, IFw, IFwh, mesh.Nxh, mesh.Ny, dt);
+        integrate_func3<<<dimGrid,dimBlock>>>(w.spec, wcurr.spec, wnew.spec, wnonl.spec, IFw, IFwh, mesh.Nxh, mesh.Ny, dt);
+        integrate_func4<<<dimGrid,dimBlock>>>(w.spec, wcurr.spec, wnew.spec, wnonl.spec, IFw, IFwh, mesh.Nxh, mesh.Ny, dt);
+        // w = wnew
+        SpecSet<<<dimGrid,dimBlock>>>(w.spec,wnew.spec,mesh.Nxh, mesh.Ny);
+
+        if (m%50==0){
+            cout << "t = " << dt*m <<"  ";
+            BwdTrans(w.mesh, w.spec, w.phys);
+            
+            cuda_error_func( cudaDeviceSynchronize() );
+            cout << w.phys[5] << endl;
+            field_visual(w, "w"+to_string(m)+".csv");
+        }
+    }
     return 0;
 }

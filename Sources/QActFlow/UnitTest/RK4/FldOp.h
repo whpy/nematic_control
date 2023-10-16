@@ -124,13 +124,13 @@ __global__
 void precompute_funcD(field r1, field r2, field w, field alpha, int Nx, int Ny);
 
 __global__
-void r1lin_func(float* IFr1h, float* IFr1, float* k_squared, float Pe, float cn, float dt);
+void r1lin_func(float* IFr1h, float* IFr1, float* k_squared, float Pe, float cn, float dt, int Nxh, int Ny);
 
 __global__
-void r2lin_func(float* IFr2h, float* IFr2, float* k_squared, float Pe, float cn, float dt);
+void r2lin_func(float* IFr2h, float* IFr2, float* k_squared, float Pe, float cn, float dt, int Nxh, int Ny);
 
 __global__
-void wlin_func(float* IFwh, float* IFw, float* k_squared, float Re, float cf, float dt);
+void wlin_func(float* IFwh, float* IFw, float* k_squared, float Re, float cf, float dt, int Nxh, int Ny);
 
 
 #endif

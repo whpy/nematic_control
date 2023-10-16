@@ -1,0 +1,3 @@
+in this test we test laplacian term of two 
+different functions with in-place operation and 
+not in-place operation, they all show the same results.

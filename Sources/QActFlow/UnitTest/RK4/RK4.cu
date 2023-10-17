@@ -670,6 +670,13 @@ inline void p21nonl_func(field p21, field appr, field appr1, field r1, field r2,
 }
 
 //RK4 integrating steps
+// du/dt = \alpha*u + F(t,u)
+// IFh = exp(\alpha*dt/2). IF = exp(\alpha*dt)
+// u_{n+1} = u_{n}*exp(alpha * dt) + 1/6*(a*IF + 2b*IFh + 2c*IFh + d)
+// a = dt*F(t_n,u_n)
+// b = dt*F(t_n+dt/2, (u_n+a/2)*IFh)
+// c = dt*F(t_n+dt/2, u_n*IFh + b/2)
+// d = dt*F(t_n+dt, u_n*IF + c*IFh)
 __global__
 void integrate_func0(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_new,
                     float* IF, float* IFh, int Nxh, int Ny, float dt){
@@ -677,8 +684,8 @@ void integrate_func0(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_
     int j = blockIdx.y * BSZ + threadIdx.y;
     int index = j*Nxh + i;
     if(i < Nxh && j < Ny){
-        // u_{n+1} = u_{n}*exp(alpha * dt/2)
-        spec_new[index] = spec_old[index]*IFh[index];
+        // u_{n+1} = u_{n}*exp(alpha * dt)
+        spec_new[index] = spec_old[index]*IF[index];
         // u_{n}
         spec_curr[index] = spec_old[index];
     }
@@ -927,9 +934,8 @@ int main(){
     if (tmpm%50==0){
             cout << "t = " << dt*tmpm <<"  ";
             BwdTrans(w.mesh, w.spec, w.phys);
-            
             cuda_error_func( cudaDeviceSynchronize() );
-            cout << w.phys[5] << endl;
+            cout << w.phys[0] << endl;
             field_visual(w, "w"+to_string(tmpm)+".csv");
         }
     for (int m=1; m<Ns; m++){
@@ -946,7 +952,7 @@ int main(){
             BwdTrans(w.mesh, w.spec, w.phys);
             
             cuda_error_func( cudaDeviceSynchronize() );
-            cout << w.phys[5] << endl;
+            cout << w.phys[0] << endl;
             field_visual(w, "w"+to_string(m)+".csv");
         }
     }

@@ -4,26 +4,24 @@ clc;
 load("x.csv")
 load("y.csv")
 load("w.csv")
-load("r1.csv")
-load("r2.csv")
-load("w_lap.csv")
+load("w150.csv")
+load("w250.csv")
+load("w350.csv")
+load("w450.csv")
+load("w550.csv")
 
-% the analytic solution laplace term
-viF(1,x,y,r1,"r1")
 
 % original function
-viF(2,x,y,w,"w")
+viF(1,x,y,w,"w")
 
-% the laplacian term by laplacian_func
-viF(3,x,y,r2,"r2")
-% in-place numerical solution of laplacian func
-viF(4,x,y,w_lap,"w_l")
+viF(2,x,y,w150,"w150")
 
-% l2 error distribution
-viF(5,x,y,(w_lap-r1).^2 ,"w_lap error, max(l_2):  "+num2str(max(max((w_lap-r1).^2 ))));
+viF(3,x,y,w250,"w250")
 
-% the difference between in-place and not in place 
-viF(6, x, y, (w_lap-r2), "laplacian func in-place operation")
+viF(4,x,y,w350,"w350")
+
+viF(5,x,y,w450,"w450")
+
 %%%%%%%%%%%%%%% function block %%%%%%%%%%%%%%%%%%
 function viF(no, x, y, fld, name)
 figure(no);

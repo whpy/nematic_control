@@ -8,22 +8,10 @@ load("r1.csv")
 load("r2.csv")
 load("w_lap.csv")
 
-% the analytic solution laplace term
-viF(1,x,y,r1,"r1")
-
 % original function
 viF(2,x,y,w,"w")
 
-% the laplacian term by laplacian_func
-viF(3,x,y,r2,"r2")
-% in-place numerical solution of laplacian func
-viF(4,x,y,w_lap,"w_l")
 
-% l2 error distribution
-viF(5,x,y,(w_lap-r1).^2 ,"w_lap error, max(l_2):  "+num2str(max(max((w_lap-r1).^2 ))));
-
-% the difference between in-place and not in place 
-viF(6, x, y, (w_lap-r2), "laplacian func in-place operation")
 %%%%%%%%%%%%%%% function block %%%%%%%%%%%%%%%%%%
 function viF(no, x, y, fld, name)
 figure(no);

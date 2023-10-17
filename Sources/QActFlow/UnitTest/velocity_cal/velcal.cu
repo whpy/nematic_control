@@ -734,7 +734,7 @@ __global__ void integrate_func3(cuComplex* spec_old, cuComplex* spec_curr, cuCom
         //         + 1/3*exp(alpha*dt/2)*(c_n)
         spec_new[index] = spec_new[index] + 1/3*IFh[index] * cn;
         // u_{n}*exp(alpha*dt) + c_{n} * exp(alpha*dt/2)
-        spec_curr[index] = (spec_old[index]*IF[index] + cn/2*IFh[index]) ;
+        spec_curr[index] = (spec_old[index]*IF[index] + cn*IFh[index]) ;
     }
 }
 __global__ void integrate_func4(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_new, 

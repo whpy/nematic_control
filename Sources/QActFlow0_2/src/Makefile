@@ -13,4 +13,4 @@ build:
 
 .PHONY: clean
 clean:
-	rm *.o main 
+	rm *.o main *.csv 

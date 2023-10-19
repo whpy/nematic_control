@@ -16,13 +16,13 @@ __global__ void coeff(float *f, int Nx, int Ny, int BSZ){
 }
 
 //update the spectral space based on the value in physical space
-inline void FwdTrans(Mesh* pmesh, float* phys, cuComplex* spec){
+void FwdTrans(Mesh* pmesh, float* phys, cuComplex* spec){
     cufft_error_func( cufftExecR2C(pmesh->transf, phys, spec));
     cuda_error_func( cudaDeviceSynchronize() );
 }
 
 //update the physics space based on the value in spectral space
-inline void BwdTrans(Mesh* pmesh, cuComplex* spec, float* phys){
+void BwdTrans(Mesh* pmesh, cuComplex* spec, float* phys){
     int Nx = pmesh->Nx;
     int Ny = pmesh->Ny;
     int BSZ = pmesh->BSZ;
@@ -79,8 +79,9 @@ void FldSet(float * pf, float c, int Nx, int Ny, int BSZ){
         pf[index] = c;
     }
 }
+
+// create a constant field pf = c
 __global__
-// set two physical field equals
 void FldSet(float * pf, float* c, int Nx, int Ny, int BSZ){
     int i = blockIdx.x * BSZ + threadIdx.x;
     int j = blockIdx.y * BSZ + threadIdx.y;
@@ -89,6 +90,8 @@ void FldSet(float * pf, float* c, int Nx, int Ny, int BSZ){
         pf[index] = c[index];
     }
 }
+
+// set two physical field equals, pa = pb
 __global__
 void SpecSet(cuComplex * pa, cuComplex* pb, int Nxh, int Ny, int BSZ){
     int i = blockIdx.x * BSZ + threadIdx.x;
@@ -138,7 +141,7 @@ __global__ void xDerivD(cuComplex *ft, cuComplex *dft, float* kx, int Nxh, int N
         dft[index] = ft[index]*im()*kx[i];
     }
 }
-inline void xDeriv(cuComplex *ft, cuComplex *dft, Mesh *mesh){
+void xDeriv(cuComplex *ft, cuComplex *dft, Mesh *mesh){
     dim3 dimGrid = mesh->dimGridp;
     dim3 dimBlock = mesh->dimBlockp;
     xDerivD<<<dimGrid, dimBlock>>>(ft,dft,mesh->kx, mesh->Nxh, mesh->Ny, mesh->BSZ);
@@ -154,7 +157,7 @@ __global__ void yDerivD(cuComplex *ft, cuComplex *dft, float* ky, int Nxh, int N
         dft[index] = ft[index]*im()*ky[j];
     }
 }
-inline void yDeriv(cuComplex *ft, cuComplex *dft, Mesh *mesh){
+void yDeriv(cuComplex *ft, cuComplex *dft, Mesh *mesh){
     dim3 dimGrid = mesh->dimGridp;
     dim3 dimBlock = mesh->dimBlockp;
     yDerivD<<<dimGrid, dimBlock>>>(ft,dft,mesh->ky,mesh->Nxh, mesh->Ny, mesh->BSZ);

@@ -35,7 +35,7 @@ int main(){
     cout << c.x << "," << c.y <<endl;
     cout << "hello world" << endl;
 
-    Mesh *mesh = new Mesh(Nx, Ny, Lx, Ly);
+    Mesh *mesh = new Mesh(16, Nx, Ny, Lx, Ly);
     Field *u = new Field(mesh);
     FldSet<<<mesh->dimGridp, mesh->dimBlockp>>>(u->phys, 1., mesh->Nx, mesh->Ny, mesh->BSZ);
     field_visual(u ,"u.csv");

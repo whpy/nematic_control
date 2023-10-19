@@ -13,8 +13,8 @@
 /*******************************************************************
 General functions
 *********************************************************************/
-inline void FwdTrans(Mesh* pmesh, float* phys, cuComplex* spec);
-inline void BwdTrans(Mesh* pmesh, cuComplex* spec, float* phys);
+void FwdTrans(Mesh* pmesh, float* phys, cuComplex* spec);
+void BwdTrans(Mesh* pmesh, cuComplex* spec, float* phys);
 __global__ void coeff(float *f, int Nx, int Ny, int BSZ);
 
 // __Device: phys Field multiplication: pc(x) = C*pa(x,y)*pb(x,y). prefix p denotes physical
@@ -50,11 +50,11 @@ void SpecAdd(float a, cuComplex* spa, float b, cuComplex* spb, cuComplex* spc, i
 
 __global__ 
 void xDerivD(cuComplex *ft, cuComplex *dft, float* kx, int Nxh, int Ny, int BSZ);
-inline void xDeriv(cuComplex *ft, cuComplex *dft, Mesh *mesh);
+void xDeriv(cuComplex *ft, cuComplex *dft, Mesh *mesh);
 
 __global__ 
 void yDerivD(cuComplex *ft, cuComplex *dft, float* ky, int Nxh, int Ny, int BSZ);
-inline void yDeriv(cuComplex *ft, cuComplex *dft, Mesh *mesh);
+void yDeriv(cuComplex *ft, cuComplex *dft, Mesh *mesh);
 
 // maintain the symmetry on y wave axis
 __global__ 
@@ -62,12 +62,12 @@ void reality_func(cuComplex *spec, int Nxh, int Ny, int BSZ);
 
 __global__ 
 void laplacian_funcD(cuComplex *ft, cuComplex *lft, int Nxh, int Ny, float* k_squared);
-inline void laplacian_func(cuComplex *ft, cuComplex *lft, Mesh* mesh);
+void laplacian_func(cuComplex *ft, cuComplex *lft, Mesh* mesh);
 
 __global__ 
 void vel_funcD(cuComplex* w_spec, cuComplex* u_spec, cuComplex* v_spec, 
                             float* k_squared, float* kx, float*ky, int Nxh, int Ny);
-inline void vel_func(Field w, Field u, Field v);
+void vel_func(Field w, Field u, Field v);
 
 // 4 steps of RK4 under spectral linear factor trick 
 __global__
@@ -98,10 +98,10 @@ void S_func(float* r1, float*r2, float* S, int Nx, int Ny);
 
 void curr_func(Field r1curr, Field r2curr, Field wcurr, Field u, Field v, Field S);
 
-inline void r1nonl_func(Field r1nonl, Field r1nonl_appr, Field r1, Field r2, Field w, 
+void r1nonl_func(Field r1nonl, Field r1nonl_appr, Field r1, Field r2, Field w, 
                         Field u, Field v, Field S, float lambda, float cn, float Pe);
 
-inline void r2nonl_func(Field r2nonl, Field r2nonl_appr, Field r1, Field r2, Field w, 
+void r2nonl_func(Field r2nonl, Field r2nonl_appr, Field r1, Field r2, Field w, 
                         Field u, Field v, Field S, float lambda, float cn, float Pe);
 
 inline void wnonl_func(Field wnonl, Field wnonl_appr, Field appr1, Field p11, Field p12, Field p21, Field r1, Field r2, Field w, 

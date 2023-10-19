@@ -1,7 +1,7 @@
 #include <Basic/Mesh.h>
 
 
-Mesh::Mesh(int pNx, int pNy, float pLx, float pLy):
+Mesh::Mesh(int pBSZ, int pNx, int pNy, float pLx, float pLy):BSZ(pBSZ),
 Nx(pNx), Ny(pNy), Lx(pLx), Ly(pLy), Nxh(pNx/2+1),dx(2*M_PI/pNx), 
 dy(2*M_PI/pNy),alphax(2*M_PI/pLx),alphay(2*M_PI/pLy){
     cufft_error_func( cufftPlan2d( &(this->transf), Ny, Nx, CUFFT_R2C ) );

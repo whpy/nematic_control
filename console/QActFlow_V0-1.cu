@@ -552,6 +552,7 @@ inline void pSingle_func(field appr, field r, field S, field alpha, float lambda
     // this function only works on the physical space
     int Nx = appr.mesh->Nx;
     int Ny = appr.mesh->Ny;
+    
 
 }
 // p11 = Single(r1)

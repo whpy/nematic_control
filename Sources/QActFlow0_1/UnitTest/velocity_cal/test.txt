@@ -1,0 +1,2 @@
+in this file, we test the validation velocity computing 
+function

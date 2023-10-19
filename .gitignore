@@ -1,6 +1,8 @@
 /Sources/Q_nematic/test_RK4/
 /Sources/Q_nematic/test_RK4_hex/
+/Sources/QActFlow0_1/*
 /console/.vscode/
 **/.vscode/
 /Sources/**/test/
+console/*
 

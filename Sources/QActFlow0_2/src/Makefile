@@ -1,5 +1,5 @@
 NVCC = nvcc
-INC = /home/hwu/Projects/nemacti_control/Sources/QActFlow0_2/src
+INC = */nemacti_control/Sources/QActFlow0_2/src
 
 all: build
 

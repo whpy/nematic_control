@@ -1,6 +1,8 @@
-linear2:
-	nvcc -lcufft linear2.cu -o linear2
+CXX = g++
+NVCC = nvcc
+CXXFLAGS = -std=c++11
 
-clean:
-	rm linear2
-	rm *.csv
+all: build
+
+build:
+	$(NVCC) 

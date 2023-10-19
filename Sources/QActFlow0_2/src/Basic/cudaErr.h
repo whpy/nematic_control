@@ -1,3 +1,16 @@
+#ifndef _CUDAERR_H
+#define _CUDAERR_H
+
+#include <iostream>
+#include <exception>
+
+#include <cufft.h>
+#include <cuda.h>
+#include <cuda_runtime_api.h>
+#include <cuda_runtime.h>
+
+using namespace std;
+
 #ifdef _CUFFT_H_
 // cuFFT API errors, for some reason not defined in cufft.h
 static const char *cufftGetErrorString(cufftResult error)
@@ -58,7 +71,7 @@ inline void cuda_error_func(cudaError_t result)
 	}
 }
 
-
+#endif // end of cuda_error.h
 
 
 

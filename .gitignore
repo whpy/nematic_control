@@ -1,9 +1,0 @@
-/Sources/Q_nematic/test_RK4/
-/Sources/Q_nematic/test_RK4_hex/
-/console/.vscode/
-**/.vscode/
-/Sources/**/test/
-**/*.csv
-**/*.exe
-**/*.exp
-**/*.lib

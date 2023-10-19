@@ -1,6 +1,6 @@
 NVCC = nvcc
-INC = /home/hwu/Projects/nematic_control/Sources/QActFlow0_2/src
-SRC = /home/hwu/Projects/nematic_control/Sources/QActFlow0_2/src
+INC = */nematic_control/Sources/QActFlow0_2/src
+SRC = */nematic_control/Sources/QActFlow0_2/src
 all: build
 
 .PHONY: build

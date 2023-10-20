@@ -3,6 +3,7 @@
 #include <Field/Field.h>
 #include <Basic/cuComplexBinOp.h>
 #include <TimeIntegration/RK4.cuh>
+#include <stdlib.h>
 
 using namespace std;
 __global__ void init_func(float* fp, float dx, float dy, int Nx, int Ny, int BSZ){
@@ -93,6 +94,7 @@ int main(){
     FldSet<<<mesh->dimGridp,mesh->dimBlockp>>>(unonl->phys, 0., 
     mesh->Nx, mesh->Ny, mesh->BSZ);
 
+    m+=1;
     for(;m <Ns; m++){
         integrate_func0<<<mesh->dimGridp,mesh->dimBlockp>>>(u->spec, ucurr->spec, unew->spec, IFu, IFuh, 
         mesh->Nxh, mesh->Ny, mesh->BSZ, mesh->dt);
@@ -132,6 +134,9 @@ int main(){
         SpecSet(u->spec, unew->spec, Nxh, Ny, mesh->BSZ);
         BwdTrans(mesh, u->spec, u->phys);
         cout << u[10] << endl;
+        if (m%100 == 0){
+            field_visual(u, itoa(m)+"u.csv")
+        }
     }
 
 

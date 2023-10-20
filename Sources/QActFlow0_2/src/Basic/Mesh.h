@@ -4,6 +4,7 @@
 #include <Basic/QActFlow.h>
 #include <Basic/Managed.hpp>
 
+#define M_PI 3.1415926535897932384
 class Mesh{ 
 public:
     // the parameters about the block size

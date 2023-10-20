@@ -92,18 +92,18 @@ void FldSet(float * pf, float c, int Nx, int Ny, int BSZ){
     }
 }
 
-// create a constant field pf = c
+// enforce field pa(x,y) = pb(x,y)
 __global__
-void FldSet(float * pf, float* c, int Nx, int Ny, int BSZ){
+void FldSet(float * pa, float* pb, int Nx, int Ny, int BSZ){
     int i = blockIdx.x * BSZ + threadIdx.x;
     int j = blockIdx.y * BSZ + threadIdx.y;
     int index = j*Nx + i;
     if (i<Nx && j<Ny){
-        pf[index] = c[index];
+        pa[index] = pb[index];
     }
 }
 
-// set two physical field equals, pa = pb
+// set two spectral field equals, pa = pb
 __global__
 void SpecSet(cuComplex * pa, cuComplex* pb, int Nxh, int Ny, int BSZ){
     int i = blockIdx.x * BSZ + threadIdx.x;

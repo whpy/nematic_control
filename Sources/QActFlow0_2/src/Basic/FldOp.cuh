@@ -22,7 +22,12 @@ __global__ void FldMul(float* pa, float* pb, float C, float* pc, int Nx, int Ny,
 
 // __Device: phys Field addition: pc(x,y) = a*pa(x,y) + b*pb(x,y). prefix p denotes physical
 __global__  void FldAdd(float* pa, float* pb, float a, float b, float* pc, int Nx, int Ny, int BSZ);
+// __Device: pc = a*pa + b*pb
 __global__  void FldAdd(float a, float* pa, float b, float* pb, float* pc, int Nx, int Ny, int BSZ);
+// __Device: pc = a*pa + b
+__global__
+void FldAdd(float a, float* pa, float b, float* pc, int Nx, int Ny, int BSZ);
+
 
 // divide a factor after transforming from spectral to physical
 __global__ void coeff(float *f, int Nx, int Ny, int BSZ);

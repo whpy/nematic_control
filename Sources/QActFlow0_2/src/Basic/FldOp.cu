@@ -69,8 +69,20 @@ void FldAdd(float a, float* pa, float b, float* pb, float* pc, int Nx, int Ny, i
         pc[index] = a*pa[index] + b*pb[index];
     }
 }
+
+// pc = a*pa + b
 __global__
+void FldAdd(float a, float* pa, float b, float* pc, int Nx, int Ny, int BSZ){
+    int i = blockIdx.x * BSZ + threadIdx.x;
+    int j = blockIdx.y * BSZ + threadIdx.y;
+    int index = j*Nx + i;
+    if(i<Nx && j<Ny){
+        pc[index] = a*pa[index] + b;
+    }
+}
+
 // set physical field equals to a constant field
+__global__
 void FldSet(float * pf, float c, int Nx, int Ny, int BSZ){
     int i = blockIdx.x * BSZ + threadIdx.x;
     int j = blockIdx.y * BSZ + threadIdx.y;

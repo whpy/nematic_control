@@ -10,6 +10,7 @@ build:
 	$(NVCC) -I $(INC) -c $(SRC)/Basic/Mesh.cpp
 	$(NVCC) -I $(INC) -c main.cu
 	$(NVCC) -o main main.o FldOp.o Mesh.o Field.o -lcufft
+	rm *.csv *.o
 
 .PHONY: clean
 clean:

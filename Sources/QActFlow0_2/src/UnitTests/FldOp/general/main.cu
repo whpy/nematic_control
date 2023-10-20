@@ -133,5 +133,7 @@ int main(){
     cuda_error_func( cudaDeviceSynchronize());
     // w = 0.
     field_visual(w ,"w3.csv");
+
+    
     return 0;
 }

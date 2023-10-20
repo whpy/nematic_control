@@ -1,6 +1,9 @@
 #include <Basic/QActFlow.h>
 
 // 4 steps of RK4 under spectral linear factor trick 
+
+
+
 __global__
 void integrate_func0(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_new,
                     float* IF, float* IFh, int Nxh, int Ny, int BSZ, float dt);

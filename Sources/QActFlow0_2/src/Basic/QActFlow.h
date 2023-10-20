@@ -16,4 +16,7 @@
 #include <Basic/cudaErr.h>
 #include <Basic/cuComplexBinOp.h>
 
+typedef float* phys;
+typedef cuComplex* spec;
+
 #endif // end of header file

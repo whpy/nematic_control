@@ -27,7 +27,7 @@ public:
     dim3 dimGridsp;
     dim3 dimBlocksp;
     
-    Mesh(int pNx, int pNy, float pLx, float pLy);
+    Mesh(int BSZ, int pNx, int pNy, float pLx, float pLy);
     ~Mesh(void);
 };
 

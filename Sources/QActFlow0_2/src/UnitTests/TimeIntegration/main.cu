@@ -41,7 +41,7 @@ float dt, int Nxh, int Ny, int BSZ)
     int i = blockIdx.x * BSZ + threadIdx.x;
     int j = blockIdx.y * BSZ + threadIdx.y;
     int index = j*Nxh + i;
-    float alpha = 0.0f;
+    float alpha = 2.0f;
     if(i<Nxh && j<Ny){
         IFuh[index] = exp( alpha *dt/2);
         IFu[index] = exp( alpha *dt);
@@ -86,6 +86,31 @@ void print_phys(Field* f){
         cout << endl;
     }
 }
+__global__ 
+void tintegrate_func1(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_new, cuComplex* spec_nonl,
+                    float* IF, float* IFh, int Nxh, int Ny, int BSZ, float dt){
+    // spec_nonl = a_n/dt here
+    // spec_curr represents the value to be input into Nonlinear function for b_n/dt next 
+    int i = blockIdx.x * BSZ + threadIdx.x;
+    int j = blockIdx.y * BSZ + threadIdx.y;
+    int index = j*Nxh + i;
+    if(i < Nxh && j < Ny){
+        
+        cuComplex an = spec_nonl[index]*dt;
+        if(i == 0 && j == 0){
+            printf("dt = %f \n",dt);
+            printf("an = (%f, %f)\n", an.x, an.y);
+            printf("IF[index] = %f\n", IF[index]);
+            printf("1/6*IF[index] = %f\n", 1/6*IF[index]);
+            printf("1/6 = %f\n", 1/6);
+            printf("1./6. = %f\n", 1./6.);
+        }
+        // u_{n+1} = u_{n}*exp(alpha * dt) + 1/6*exp(alpha*dt)*(a_n)
+        spec_new[index] = spec_new[index] + 1./6.*IF[index] * an;
+        // (u_{n}+a_{n}/2)*exp(alpha*dt/2)
+        spec_curr[index] = (spec_old[index]+an/2) * IFh[index];
+    }
+}
 
 int main(){
     int BSZ = 16;
@@ -113,52 +138,42 @@ int main(){
     // initialize the field
     // set up the Integrating factor
     // we may take place here by IF class
-    ulin_func<<<mesh->dimGridp,mesh->dimBlockp>>>(IFuh, IFu, mesh->k_squared, dt, mesh->Nxh, mesh->Ny, mesh->BSZ);
-    
+    ulin_func<<<mesh->dimGridsp,mesh->dimBlocksp>>>(IFuh, IFu, mesh->k_squared, dt, mesh->Nxh, mesh->Ny, mesh->BSZ);
     // initialize the physical space of u(u_o.x << "," << f->phys[index].y ld)
     init_func<<<mesh->dimGridp,mesh->dimBlockp>>>(u->phys, 
     mesh->dx, mesh->dy, mesh->Nx, mesh->Ny, mesh->BSZ);
     // initialize the spectral space of u 
     FwdTrans(mesh, u->phys, u->spec);
-    
-    cuda_error_func( cudaDeviceSynchronize() ); 
-    field_visual(u, "u_init.csv");
-    unonl_func(unonl, u, m*dt);
-    field_visual(unonl, "unonl_ts.csv");
+    cuda_error_func( cudaDeviceSynchronize() );
+    for (int j = 0; j <Ny; j++){
+        for (int i = 0; i < Nxh; i++){
+            int index = j*Nxh + i;
+            cout << IFu[index] << " ";
+        }
+        cout << endl;
+    }
+    cout << endl;
+    for (int j = 0; j <Ny; j++){
+        for (int i = 0; i < Nxh; i++){
+            int index = j*Nxh + i;
+            cout << IFuh[index] << " ";
+        }
+        cout << endl;
+    }
 
-    // integrate_func0<<<mesh->dimGridp, mesh->dimBlockp>>>(u->spec, ucurr->spec, unew->spec, IFu, IFuh, Nxh, Ny, BSZ,dt);
-    // BwdTrans(mesh, ucurr->spec, ucurr->phys);
-    // cuda_error_func( cudaDeviceSynchronize() );
-    // cout << "spec of unew(after func0)" << endl;
-    // print_spec(unew);
-    // cout << "spec of ucurr(after func0)" << endl;
-    // print_spec(ucurr);
-
-    // unonl_func(unonl,ucurr,m*dt);
-    // cout << "spec of unonl(before func1)" << endl;
-    // print_spec(unonl);
-    // integrate_func1<<<mesh->dimGridp, mesh->dimBlockp>>>(u->spec, ucurr->spec, unew->spec, unonl->spec, IFu, IFuh, Nxh, Ny, mesh->BSZ, dt);
-    // cuda_error_func( cudaDeviceSynchronize() );
-    // cout << "spec of unew(after func1)" << endl;
-    // print_spec(unew);
-    cout << IFu[5] << endl;
-    SpecSet<<<mesh->dimGridp, mesh->dimBlockp>>>(u->spec, make_cuComplex(-3.0,0.),Nxh, Ny, mesh->BSZ);
+    SpecSet<<<mesh->dimGridsp,mesh->dimBlocksp>>>(unonl->spec, make_cuComplex(1.f,0.f), Nxh, Ny, BSZ);
+    SpecSet<<<mesh->dimGridsp,mesh->dimBlocksp>>>(u->spec, make_cuComplex(0.f,1.f), Nxh, Ny, BSZ);
+    SpecSet<<<mesh->dimGridsp,mesh->dimBlocksp>>>(unew->spec, make_cuComplex(0.f,2.f), Nxh, Ny, BSZ);
     cuda_error_func( cudaDeviceSynchronize() );
-    SpecSet<<<mesh->dimGridp, mesh->dimBlockp>>>(unew->spec, make_cuComplex(0.0,1.0), Nxh, Ny, mesh->BSZ);
-    cuda_error_func( cudaDeviceSynchronize() );
-    SpecSet<<<mesh->dimGridp, mesh->dimBlockp>>>(unonl->spec, make_cuComplex(1.0,0.0), Nxh, Ny, mesh->BSZ);
-    cuda_error_func( cudaDeviceSynchronize() );
-    cout << "spec of unew(b4 func1)" << endl;
+    cout << "b4 func1" << endl;
     print_spec(unew);
-    integrate_func1<<<mesh->dimGridp, mesh->dimBlockp>>>(u->spec, ucurr->spec, unew->spec, unonl->spec, IFu, IFuh, Nxh, Ny, mesh->BSZ, dt);
+    tintegrate_func1<<<mesh->dimGridsp,mesh->dimBlocksp>>>(u->spec, ucurr->spec, unew->spec, unonl->spec, IFu, IFuh,Nxh, Ny, BSZ, dt);
     cuda_error_func( cudaDeviceSynchronize() );
-    cout << "spec of unew(after func1)" << endl;
+    cout << "afer func1" << endl;
     print_spec(unew);
 
-    SpecAdd<<<mesh->dimGridsp, mesh->dimBlocksp>>>(1., u->spec, 1/6*dt, unonl->spec, unew->spec, Nxh, Ny, mesh->BSZ);
-    cuda_error_func( cudaDeviceSynchronize() );
-    cout << "spec of unew(after specadd)" << endl;
-    print_spec(unew);
+
+
 
     return 0;
 }

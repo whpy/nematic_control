@@ -57,7 +57,15 @@ void SpecAdd(float a, cuComplex* spa, float b, cuComplex* spb, cuComplex* spc, i
 __global__ 
 void SpecMul(cuComplex* spa, cuComplex* spb, float C, cuComplex*spc, int Nxh, int Ny, int BSZ);
 __global__ 
-void SpecMul(cuComplex* spa, cuComplex* spb, float C, cuComplex*spc, int Nxh, int Ny, int BSZ);
+void SpecMul(cuComplex* spa, cuComplex* spb, cuComplex C, cuComplex*spc, int Nxh, int Ny, int BSZ);
+__global__ 
+void SpecMul(float* spa, cuComplex* spb, float C, cuComplex*spc, int Nxh, int Ny, int BSZ);
+__global__ 
+void SpecMul(cuComplex* spa, float* spb, float C, cuComplex*spc, int Nxh, int Ny, int BSZ);
+__global__ 
+void SpecMul(float* spa, cuComplex* spb, cuComplex C, cuComplex*spc, int Nxh, int Ny, int BSZ);
+__global__ 
+void SpecMul(cuComplex* spa, float* spb, cuComplex C, cuComplex*spc, int Nxh, int Ny, int BSZ);
 
 __global__ 
 void xDerivD(cuComplex *ft, cuComplex *dft, float* kx, int Nxh, int Ny, int BSZ);

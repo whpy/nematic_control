@@ -232,3 +232,4 @@ void yDeriv(cuComplex *ft, cuComplex *dft, Mesh *mesh){
     cuda_error_func( cudaPeekAtLastError() );
 	cuda_error_func( cudaDeviceSynchronize() );
 }
+

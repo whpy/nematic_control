@@ -233,3 +233,22 @@ void yDeriv(cuComplex *ft, cuComplex *dft, Mesh *mesh){
 	cuda_error_func( cudaDeviceSynchronize() );
 }
 
+__global__ 
+void laplacian_funcD(cuComplex *ft, cuComplex *lft, float* k_squared, int Nxh, int Ny, int BSZ){
+    int i = blockIdx.x * BSZ + threadIdx.x;
+    int j = blockIdx.y * BSZ + threadIdx.y;
+    int index = i + j*Nxh;
+    if(i<Nxh && j<Ny){
+        // \hat{Dxx(u) + Dyy(u)} = -1*(kx^2 + ky^2)*\hat{u}
+        lft[index] = -1* k_squared[index]*ft[index]; 
+    }
+}
+void laplacian_func(cuComplex *ft, cuComplex *lft, Mesh* mesh){
+    laplacian_funcD<<<mesh->dimGridsp, mesh->dimBlocksp>>>(ft, lft, mesh->k_squared, 
+    mesh->Nxh, mesh->Ny, mesh->BSZ);
+}
+
+
+__global__ 
+void reality_func(cuComplex *spec, int Nxh, int Ny, int BSZ);
+

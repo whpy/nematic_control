@@ -49,4 +49,5 @@ inline void p21nonl_func(Field p21, Field appr, Field appr1, Field r1, Field r2,
 __global__
 void precompute_funcD(Field r1, Field r2, Field w, Field alpha, int Nx, int Ny);
 
+
 #endif // end of __STREAMFUNC_CUH

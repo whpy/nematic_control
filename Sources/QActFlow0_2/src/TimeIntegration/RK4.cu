@@ -1,7 +1,5 @@
 #include <TimeIntegration/RK4.cuh>
 
-
-
 //RK4 integrating steps
 // du/dt = \alpha*u + F(t,u)
 // IFh = exp(\alpha*dt/2). IF = exp(\alpha*dt)
@@ -11,7 +9,7 @@
 // c = dt*F(t_n+dt/2, u_n*IFh + b/2)
 // d = dt*F(t_n+dt, u_n*IF + c*IFh)
 __global__
-void integrate_func0(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_new,
+void integrate_func0D(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_new,
                     float* IF, float* IFh, int Nxh, int Ny, int BSZ, float dt){
     int i = blockIdx.x * BSZ + threadIdx.x;
     int j = blockIdx.y * BSZ + threadIdx.y;
@@ -23,8 +21,18 @@ void integrate_func0(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_
         spec_curr[index] = spec_old[index];
     }
 }
+void integrate_func0(Field* f_old, Field* f_curr, Field* f_new, float* IF, float* IFh, float dt){
+    Mesh* mesh = f_old->mesh;
+    int Nxh = mesh->Nxh;
+    int Ny = mesh->Ny;
+    int BSZ = mesh->BSZ;
+    dim3 dimGrid = mesh->dimGridsp;
+    dim3 dimBlock = mesh->dimBlocksp;
+    integrate_func0D<<<dimGrid, dimBlock>>>(f_old->spec, f_curr->spec, f_new->spec, IF, IFh, Nxh, Ny, BSZ, dt);
+}
+
 __global__ 
-void integrate_func1(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_new, cuComplex* spec_nonl,
+void integrate_func1D(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_new, cuComplex* spec_nonl,
                     float* IF, float* IFh, int Nxh, int Ny, int BSZ, float dt){
     // spec_nonl = a_n/dt here
     // spec_curr represents the value to be input into Nonlinear function for b_n/dt next 
@@ -39,7 +47,17 @@ void integrate_func1(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_
         spec_curr[index] = (spec_old[index]+an/2.f) * IFh[index];
     }
 }
-__global__ void integrate_func2(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_new, 
+void integrate_func1(Field* f_old, Field* f_curr, Field* f_new, Field*f_nonl, float* IF, float* IFh, float dt){
+    Mesh* mesh = f_old->mesh;
+    int Nxh = mesh->Nxh;
+    int Ny = mesh->Ny;
+    int BSZ = mesh->BSZ;
+    dim3 dimGrid = mesh->dimGridsp;
+    dim3 dimBlock = mesh->dimBlocksp;
+    integrate_func1D<<<dimGrid, dimBlock>>>(f_old->spec, f_curr->spec, f_new->spec, f_nonl->spec, IF, IFh, Nxh, Ny, BSZ, dt);
+}
+
+__global__ void integrate_func2D(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_new, 
                         cuComplex* spec_nonl,float* IF, float* IFh, int Nxh, int Ny, int BSZ, float dt){
     // spec_nonl = b_n/dt here
     // spec_curr represents the value to be input into Nonlinear function for c_n/dt next 
@@ -54,7 +72,17 @@ __global__ void integrate_func2(cuComplex* spec_old, cuComplex* spec_curr, cuCom
         spec_curr[index] = (spec_old[index]*IFh[index] + bn/2.f) ;
     }
 }
-__global__ void integrate_func3(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_new, 
+void integrate_func2(Field* f_old, Field* f_curr, Field* f_new, Field*f_nonl, float* IF, float* IFh, float dt){
+    Mesh* mesh = f_old->mesh;
+    int Nxh = mesh->Nxh;
+    int Ny = mesh->Ny;
+    int BSZ = mesh->BSZ;
+    dim3 dimGrid = mesh->dimGridsp;
+    dim3 dimBlock = mesh->dimBlocksp;
+    integrate_func2D<<<dimGrid, dimBlock>>>(f_old->spec, f_curr->spec, f_new->spec, f_nonl->spec, IF, IFh, Nxh, Ny, BSZ, dt);
+}
+
+__global__ void integrate_func3D(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_new, 
                         cuComplex* spec_nonl,float* IF, float* IFh, int Nxh, int Ny, int BSZ, float dt){
     // spec_nonl = c_n/dt here
     // spec_curr represents the value to be input into Nonlinear function for {i}_n/dt next 
@@ -70,7 +98,17 @@ __global__ void integrate_func3(cuComplex* spec_old, cuComplex* spec_curr, cuCom
         spec_curr[index] = (spec_old[index]*IF[index] + cn*IFh[index]) ;
     }
 }
-__global__ void integrate_func4(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_new, 
+void integrate_func3(Field* f_old, Field* f_curr, Field* f_new, Field*f_nonl, float* IF, float* IFh, float dt){
+    Mesh* mesh = f_old->mesh;
+    int Nxh = mesh->Nxh;
+    int Ny = mesh->Ny;
+    int BSZ = mesh->BSZ;
+    dim3 dimGrid = mesh->dimGridsp;
+    dim3 dimBlock = mesh->dimBlocksp;
+    integrate_func3D<<<dimGrid, dimBlock>>>(f_old->spec, f_curr->spec, f_new->spec, f_nonl->spec, IF, IFh, Nxh, Ny, BSZ, dt);
+}
+
+__global__ void integrate_func4D(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_new, 
                         cuComplex* spec_nonl,float* IF, float* IFh, int Nxh, int Ny, int BSZ, float dt){
     // spec_nonl = d_n/dt here
     // spec_curr represents the value to be input into Nonlinear function for d_n/dt next 
@@ -84,4 +122,13 @@ __global__ void integrate_func4(cuComplex* spec_old, cuComplex* spec_curr, cuCom
         spec_new[index] = spec_new[index] + 1.f/6.f*dn;
     }
 
+}
+void integrate_func4(Field* f_old, Field* f_curr, Field* f_new, Field*f_nonl, float* IF, float* IFh, float dt){
+    Mesh* mesh = f_old->mesh;
+    int Nxh = mesh->Nxh;
+    int Ny = mesh->Ny;
+    int BSZ = mesh->BSZ;
+    dim3 dimGrid = mesh->dimGridsp;
+    dim3 dimBlock = mesh->dimBlocksp;
+    integrate_func4D<<<dimGrid, dimBlock>>>(f_old->spec, f_curr->spec, f_new->spec, f_nonl->spec, IF, IFh, Nxh, Ny, BSZ, dt);
 }

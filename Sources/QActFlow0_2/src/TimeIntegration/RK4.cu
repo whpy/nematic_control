@@ -19,7 +19,7 @@ void integrate_func0(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_
     if(i < Nxh && j < Ny){
         // u_{n+1} = u_{n}*exp(alpha * dt)
         spec_new[index] = spec_old[index]*IF[index];
-        // u_{n}
+        // ucurr = u_{n}
         spec_curr[index] = spec_old[index];
     }
 }
@@ -34,8 +34,8 @@ void integrate_func1(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_
     if(i < Nxh && j < Ny){
         cuComplex an = spec_nonl[index]*dt;
         // u_{n+1} = u_{n}*exp(alpha * dt) + 1/6*exp(alpha*dt)*(a_n)
-        spec_new[index] = spec_new[index] + 1.f/6.f*IF[index] * an;
-        // (u_{n}+a_{n}/2)*exp(alpha*dt/2)
+        spec_new[index] = spec_new[index] + 1.f/6.f*IF[index]*an;
+        // ucurr = (u_{n}+a_{n}/2)*exp(alpha*dt/2)
         spec_curr[index] = (spec_old[index]+an/2.f) * IFh[index];
     }
 }
@@ -48,16 +48,16 @@ __global__ void integrate_func2(cuComplex* spec_old, cuComplex* spec_curr, cuCom
     int index = j*Nxh + i;
     if(i < Nxh && j < Ny){
         cuComplex bn = spec_nonl[index]*dt;
-        // u_{n+1} = u_{n}*exp(alpha * dt) + 1/6*exp(alpha*dt)*(a_n) + 1/6*exp(alpha*dt/2)*(b_n)
+        // u_{n+1} = u_{n}*exp(alpha * dt) + 1/6*exp(alpha*dt)*(a_n) + 1/3*exp(alpha*dt/2)*(b_n)
         spec_new[index] = spec_new[index] + 1.f/3.f*IFh[index] * bn;
-        // (u_{n}*exp(alpha*dt/2) + b_{n}/2)
+        // ucurr = (u_{n}*exp(alpha*dt/2) + b_{n}/2)
         spec_curr[index] = (spec_old[index]*IFh[index] + bn/2.f) ;
     }
 }
 __global__ void integrate_func3(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_new, 
                         cuComplex* spec_nonl,float* IF, float* IFh, int Nxh, int Ny, int BSZ, float dt){
     // spec_nonl = c_n/dt here
-    // spec_curr represents the value to be input into Nonlinear function for d_n/dt next 
+    // spec_curr represents the value to be input into Nonlinear function for {i}_n/dt next 
     int i = blockIdx.x * BSZ + threadIdx.x;
     int j = blockIdx.y * BSZ + threadIdx.y;
     int index = j*Nxh + i;
@@ -66,7 +66,7 @@ __global__ void integrate_func3(cuComplex* spec_old, cuComplex* spec_curr, cuCom
         // u_{n+1} = u_{n}*exp(alpha * dt) + 1/6*exp(alpha*dt)*(a_n) + 1/3*exp(alpha*dt/2)*(b_n) 
         //         + 1/3*exp(alpha*dt/2)*(c_n)
         spec_new[index] = spec_new[index] + 1.f/3.f*IFh[index] * cn;
-        // u_{n}*exp(alpha*dt) + c_{n} * exp(alpha*dt/2)
+        // ucurr = u_{n}*exp(alpha*dt) + c_{n} * exp(alpha*dt/2)
         spec_curr[index] = (spec_old[index]*IF[index] + cn*IFh[index]) ;
     }
 }

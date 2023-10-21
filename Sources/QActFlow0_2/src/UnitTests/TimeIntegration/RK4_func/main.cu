@@ -144,11 +144,28 @@ int main(){
     print_spec(unew);
     // u_{n+1} = u_{n}*exp(alpha * dt)
     integrate_func0<<<mesh->dimGridsp,mesh->dimBlocksp>>>(u->spec, ucurr->spec, unew->spec, IFu, IFuh, Nxh, Ny, BSZ, dt);
+    cuda_error_func( cudaDeviceSynchronize() );
+    cout << "after func0" << endl;
+    print_spec(unew);
     // u_{n+1} = u_{n+1} + 1/6*exp(alpha*dt)*(a_n) = u_{n}*exp(alpha * dt) + 1/6*exp(alpha*dt)*(a_n)
     integrate_func1<<<mesh->dimGridsp,mesh->dimBlocksp>>>(u->spec, ucurr->spec, unew->spec, unonl->spec, IFu, IFuh, Nxh, Ny, mesh->BSZ, dt);
-    
     cuda_error_func( cudaDeviceSynchronize() );
     cout << "after func1" << endl;
+    print_spec(unew);
+    // u_{n+1} = u_{n}*exp(alpha * dt) + 1/6*exp(alpha*dt)*(a_n) + 1/3*exp(alpha*dt/2)*(b_n)
+    integrate_func2<<<mesh->dimGridsp,mesh->dimBlocksp>>>(u->spec, ucurr->spec, unew->spec, unonl->spec, IFu, IFuh, Nxh, Ny, mesh->BSZ, dt);
+    cuda_error_func( cudaDeviceSynchronize() );
+    cout << "after func2" << endl;
+    print_spec(unew);
+    // u_{n+1} = u_{n}*exp(alpha * dt) + 1/6*exp(alpha*dt)*(a_n) + 1/3*exp(alpha*dt/2)*(b_n) 
+    //         + 1/3*exp(alpha*dt/2)*(c_n)
+    integrate_func3<<<mesh->dimGridsp,mesh->dimBlocksp>>>(u->spec, ucurr->spec, unew->spec, unonl->spec, IFu, IFuh, Nxh, Ny, mesh->BSZ, dt);
+    cuda_error_func( cudaDeviceSynchronize() );
+    cout << "after func3" << endl;
+    print_spec(unew);
+    integrate_func4<<<mesh->dimGridsp,mesh->dimBlocksp>>>(u->spec, ucurr->spec, unew->spec, unonl->spec, IFu, IFuh, Nxh, Ny, mesh->BSZ, dt);
+    cuda_error_func( cudaDeviceSynchronize() );
+    cout << "after func4" << endl;
     print_spec(unew);
 
 

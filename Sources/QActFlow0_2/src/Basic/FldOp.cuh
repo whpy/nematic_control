@@ -53,6 +53,12 @@ void SpecAdd(cuComplex* spa, cuComplex* spb, float a, float b, cuComplex* spc, i
 __global__
 void SpecAdd(float a, cuComplex* spa, float b, cuComplex* spb, cuComplex* spc, int Nxh, int Ny, int BSZ);
 
+// spectral multiplication: spc(k,l) = C*spa(k,l)*spb(k,l)
+__global__ 
+void SpecMul(cuComplex* spa, cuComplex* spb, float C, cuComplex*spc, int Nxh, int Ny, int BSZ);
+__global__ 
+void SpecMul(cuComplex* spa, cuComplex* spb, float C, cuComplex*spc, int Nxh, int Ny, int BSZ);
+
 __global__ 
 void xDerivD(cuComplex *ft, cuComplex *dft, float* kx, int Nxh, int Ny, int BSZ);
 void xDeriv(cuComplex *ft, cuComplex *dft, Mesh *mesh);

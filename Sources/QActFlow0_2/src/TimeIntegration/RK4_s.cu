@@ -6,57 +6,39 @@
 // du/dt = \alpha*u + F(t,u)
 // IFh = exp(\alpha*dt/2). IF = exp(\alpha*dt)
 // u_{n+1} = u_{n}*IF + 1/6*(a*IF + 2b*IFh + 2c*IFh + d)
-// a_n = dt*F(t_n,u_n)
-// b_n = dt*F(t_n+dt/2, (u_n+a_n/2)*IFh)
-// c_n = dt*F(t_n+dt/2, u_n*IFh + b_n/2)
-// d_n = dt*F(t_n+dt, u_n*IF + c_n*IFh)
-// 
-// Here, u_old represents u_n, u_curr represents the input for computing
-// the intermediate variables (a,b,c,d), u_new represents the value at next
-// step. 
-
-// preparation before RK4 integration
-// compute the value at next step adding the first term u_{n}*IF of the summation 
-// prepare input ucurr(u_n) for computation of a_n
-void integrate_func0(Field *u_old, Field *u_curr, Field *u_new, 
-float *IF, float *IFh){
-    // u_{n+1} = u_{n}*exp(alpha * dt)
-    SpecSet
-    // u_curr = u_{n}
+// a = dt*F(t_n,u_n)
+// b = dt*F(t_n+dt/2, (u_n+a/2)*IFh)
+// c = dt*F(t_n+dt/2, u_n*IFh + b/2)
+// d = dt*F(t_n+dt, u_n*IF + c*IFh)
+__global__
+void integrate_func0(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_new,
+                    float* IF, float* IFh, int Nxh, int Ny, int BSZ, float dt){
+    int i = blockIdx.x * BSZ + threadIdx.x;
+    int j = blockIdx.y * BSZ + threadIdx.y;
+    int index = j*Nxh + i;
+    if(i < Nxh && j < Ny){
+        // u_{n+1} = u_{n}*exp(alpha * dt)
+        spec_new[index] = spec_old[index]*IF[index];
+        // u_{n}
+        spec_curr[index] = spec_old[index];
+    }
 }
-// __global_
-// void integrate_func0(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_new,
-//                     float* IF, float* IFh, int Nxh, int Ny, int BSZ, float dt){
-//     int i = blockIdx.x * BSZ + threadIdx.x;
-//     int j = blockIdx.y * BSZ + threadIdx.y;
-//     int index = j*Nxh + i;
-//     if(i < Nxh && j < Ny){
-//         // u_{n+1} = u_{n}*exp(alpha * dt)
-//         spec_new[index] = spec_old[index]*IF[index];
-//         // u_{n}
-//         spec_curr[index] = spec_old[index];
-//     }
-// }
-void integrate_func1(Field *u_old, Field *u_curr, Field *u_new, Field* u_nonl, 
-float *IF, float *IFh){
-
+__global__ 
+void integrate_func1(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_new, cuComplex* spec_nonl,
+                    float* IF, float* IFh, int Nxh, int Ny, int BSZ, float dt){
+    // spec_nonl = a_n/dt here
+    // spec_curr represents the value to be input into Nonlinear function for b_n/dt next 
+    int i = blockIdx.x * BSZ + threadIdx.x;
+    int j = blockIdx.y * BSZ + threadIdx.y;
+    int index = j*Nxh + i;
+    if(i < Nxh && j < Ny){
+        cuComplex an = spec_nonl[index]*dt;
+        // u_{n+1} = u_{n}*exp(alpha * dt) + 1/6*exp(alpha*dt)*(a_n)
+        spec_new[index] = spec_new[index] + 1/6*IF[index] * an;
+        // (u_{n}+a_{n}/2)*exp(alpha*dt/2)
+        spec_curr[index] = (spec_old[index]+an/2) * IFh[index];
+    }
 }
-// __global__ 
-// void integrate_func1(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_new, cuComplex* spec_nonl,
-//                     float* IF, float* IFh, int Nxh, int Ny, int BSZ, float dt){
-//     // spec_nonl = a_n/dt here
-//     // spec_curr represents the value to be input into Nonlinear function for b_n/dt next 
-//     int i = blockIdx.x * BSZ + threadIdx.x;
-//     int j = blockIdx.y * BSZ + threadIdx.y;
-//     int index = j*Nxh + i;
-//     if(i < Nxh && j < Ny){
-//         cuComplex an = spec_nonl[index]*dt;
-//         // u_{n+1} = u_{n}*exp(alpha * dt) + 1/6*exp(alpha*dt)*(a_n)
-//         spec_new[index] = spec_new[index] + 1/6*IF[index] * an;
-//         // (u_{n}+a_{n}/2)*exp(alpha*dt/2)
-//         spec_curr[index] = (spec_old[index]+an/2) * IFh[index];
-//     }
-// }
 __global__ void integrate_func2(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_new, 
                         cuComplex* spec_nonl,float* IF, float* IFh, int Nxh, int Ny, int BSZ, float dt){
     // spec_nonl = b_n/dt here

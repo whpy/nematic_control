@@ -145,6 +145,62 @@ void SpecAdd(float a, cuComplex* spa, float b, cuComplex* spb, cuComplex* spc, i
     }
 }
 
+// spectral multiplication: spc(k,l) = C*spa(k,l)*spb(k,l)
+__global__ 
+void SpecMul(cuComplex* spa, cuComplex* spb, float C, cuComplex*spc, int Nxh, int Ny, int BSZ){
+    int i = blockIdx.x * BSZ + threadIdx.x;
+    int j = blockIdx.y * BSZ + threadIdx.y;
+    int index = j*Nxh + i;
+    if(i<Nxh && j<Ny){
+        spc[index] = C*spa[index]*spb[index];
+    }
+}
+__global__ 
+void SpecMul(cuComplex* spa, cuComplex* spb, cuComplex C, cuComplex*spc, int Nxh, int Ny, int BSZ){
+    int i = blockIdx.x * BSZ + threadIdx.x;
+    int j = blockIdx.y * BSZ + threadIdx.y;
+    int index = j*Nxh + i;
+    if(i<Nxh && j<Ny){
+        spc[index] = C*spa[index]*spb[index];
+    }
+}
+__global__ 
+void SpecMul(float* spa, cuComplex* spb, float C, cuComplex*spc, int Nxh, int Ny, int BSZ){
+    int i = blockIdx.x * BSZ + threadIdx.x;
+    int j = blockIdx.y * BSZ + threadIdx.y;
+    int index = j*Nxh + i;
+    if(i<Nxh && j<Ny){
+        spc[index] = C*spa[index]*spb[index];
+    }
+}
+__global__ 
+void SpecMul(cuComplex* spa, float* spb, float C, cuComplex*spc, int Nxh, int Ny, int BSZ){
+    int i = blockIdx.x * BSZ + threadIdx.x;
+    int j = blockIdx.y * BSZ + threadIdx.y;
+    int index = j*Nxh + i;
+    if(i<Nxh && j<Ny){
+        spc[index] = C*spa[index]*spb[index];
+    }
+}
+__global__ 
+void SpecMul(float* spa, cuComplex* spb, cuComplex C, cuComplex*spc, int Nxh, int Ny, int BSZ){
+    int i = blockIdx.x * BSZ + threadIdx.x;
+    int j = blockIdx.y * BSZ + threadIdx.y;
+    int index = j*Nxh + i;
+    if(i<Nxh && j<Ny){
+        spc[index] = C*spa[index]*spb[index];
+    }
+}
+__global__ 
+void SpecMul(cuComplex* spa, float* spb, cuComplex C, cuComplex*spc, int Nxh, int Ny, int BSZ){
+    int i = blockIdx.x * BSZ + threadIdx.x;
+    int j = blockIdx.y * BSZ + threadIdx.y;
+    int index = j*Nxh + i;
+    if(i<Nxh && j<Ny){
+        spc[index] = C*spa[index]*spb[index];
+    }
+}
+
 __global__ void xDerivD(cuComplex *ft, cuComplex *dft, float* kx, int Nxh, int Ny, int BSZ){
     int i = blockIdx.x * BSZ + threadIdx.x;
     int j = blockIdx.y * BSZ + threadIdx.y;

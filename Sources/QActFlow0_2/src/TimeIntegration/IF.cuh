@@ -7,6 +7,10 @@
 class IF{
 public:
     Mesh* mesh;
+    cuComplex alpha;
+
+    IF(Mesh* pmesh, cuComplex palpha):mesh(pmesh), alpha(palpha){
+    }
 
 };
 

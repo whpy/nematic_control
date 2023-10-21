@@ -14,7 +14,7 @@ __global__ void init_func(float* fp, float dx, float dy, int Nx, int Ny, int BSZ
     if(i<Nx && j<Ny){
         float x = i*dx;
         float y = j*dy;
-        fp[index] = -sin(x+y);
+        fp[index] = -2.f;
     }
 }
 
@@ -32,7 +32,7 @@ void field_visual(Field *f, string name){
     fval.close();
 }
 
-// du/dt = u^2+2*2+1 = L(u) + NL(u),
+// du/dt = u^2 + 2*u + 1 = L(u) + NL(u),
 // L(u) = 2*u, NL(u) = u^2+1
 __global__
 void ulin_func(float* IFuh, float* IFu, float* k_squared, 
@@ -52,14 +52,14 @@ void unonl_func(Field* unonl, Field* ucurr,float t){
     Mesh* mesh = unonl->mesh;
     dim3 dimGrid = mesh->dimGridp;
     dim3 dimBlock = mesh->dimBlockp;
-    // unonl = ucurr*ucurr
-    FldMul<<<dimGrid, dimBlock>>> (ucurr->phys, ucurr->phys, 1.0, unonl->phys, 
-    mesh->Nx, mesh->Ny, mesh->BSZ);
-    // unonl = unonl + 1 = ucurr*ucurr + 1
-    cuda_error_func( cudaDeviceSynchronize() );
-    FldAdd<<<dimGrid, dimBlock>>> (1., unonl->phys, 1.0, unonl->phys, 
-    mesh->Nx, mesh->Ny, mesh->BSZ);
-    cuda_error_func( cudaDeviceSynchronize() );
+    // ucurr = ucurr*ucurr
+    FldMul<<<dimGrid, dimBlock>>>(ucurr->phys, ucurr->phys, 1.f, ucurr->phys, mesh->Nx, mesh->Ny, mesh->BSZ);
+    // ucurr = ucurr + 1 = ucurr*ucurr + 1
+    FldAdd<<<dimGrid, dimBlock>>>(1.f, ucurr->phys, 1.f, ucurr->phys, mesh->Nx, mesh->Ny, mesh->BSZ);
+    // unonl = ucurr = ucurr*ucurr + 1
+    FldSet<<<dimGrid, dimBlock>>>(unonl->phys, ucurr->phys, mesh->Nx, mesh->Ny, mesh->BSZ);
+    
+    // update the spectral space
     FwdTrans(unonl->mesh, unonl->phys, unonl->spec);
 }
 
@@ -87,9 +87,11 @@ void print_phys(Field* f){
     }
 }
 
+// we test the performance of the RK4 on linear ODE that du/dt = -u where
+// the exact solution should be u = c0*exp(-t), c0 depends on initial conditon.
 int main(){
     int BSZ = 16;
-    int Ns = 1000;
+    int Ns = 50000000;
     int Nx = 8; // same as colin
     int Ny = 8;
     int Nxh = Nx/2+1;
@@ -97,7 +99,7 @@ int main(){
     float Ly = 2*M_PI;
     float dx = 2*M_PI/Nx;
     float dy = 2*M_PI/Ny;
-    float dt = 0.05; // same as colin
+    float dt = 0.00005; // same as colin
     float a = 1.0;
 
     // Fldset test
@@ -120,39 +122,46 @@ int main(){
     // initialize the spectral space of u 
     FwdTrans(mesh, u->phys, u->spec);
     cuda_error_func( cudaDeviceSynchronize() );
-    for (int j = 0; j <Ny; j++){
-        for (int i = 0; i < Nxh; i++){
-            int index = j*Nxh + i;
-            cout << IFu[index] << " ";
-        }
-        cout << endl;
-    }
-    cout << endl;
-    for (int j = 0; j <Ny; j++){
-        for (int i = 0; i < Nxh; i++){
-            int index = j*Nxh + i;
-            cout << IFuh[index] << " ";
-        }
-        cout << endl;
-    }
+    print_phys(u);
 
-    SpecSet<<<mesh->dimGridsp,mesh->dimBlocksp>>>(unonl->spec, make_cuComplex(1.f,0.f), Nxh, Ny, BSZ);
-    SpecSet<<<mesh->dimGridsp,mesh->dimBlocksp>>>(u->spec, make_cuComplex(0.f,1.f), Nxh, Ny, BSZ);
-    SpecSet<<<mesh->dimGridsp,mesh->dimBlocksp>>>(unew->spec, make_cuComplex(0.f,2.f), Nxh, Ny, BSZ);
+    cout << "b4 nonl the unonl"<<endl;
+    print_phys(unonl);
+    unonl_func(unonl, u, 0.f);
     cuda_error_func( cudaDeviceSynchronize() );
-    cout << "b4 func1" << endl;
-    print_spec(unew);
-    // u_{n+1} = u_{n}*exp(alpha * dt)
-    integrate_func0<<<mesh->dimGridsp,mesh->dimBlocksp>>>(u->spec, ucurr->spec, unew->spec, IFu, IFuh, Nxh, Ny, BSZ, dt);
-    // u_{n+1} = u_{n+1} + 1/6*exp(alpha*dt)*(a_n) = u_{n}*exp(alpha * dt) + 1/6*exp(alpha*dt)*(a_n)
-    integrate_func1<<<mesh->dimGridsp,mesh->dimBlocksp>>>(u->spec, ucurr->spec, unew->spec, unonl->spec, IFu, IFuh, Nxh, Ny, mesh->BSZ, dt);
+    cout << "after nonl the unonl"<<endl;
+    print_phys(unonl);
+
+    m++;
+    for(;m<Ns;m++){
+        integrate_func0(u, ucurr, unew, IFu, IFuh, dt);
+        BwdTrans(mesh, ucurr->spec, ucurr->phys);
+        
+        unonl_func(unonl, ucurr, m*dt);
+        cuda_error_func( cudaDeviceSynchronize() );
+        // printf("(%f, %f)\n", unonl->spec[5].x, unonl->spec[5].y);
+        integrate_func1(u, ucurr, unew, unonl, IFu, IFuh, dt);
+        BwdTrans(mesh, ucurr->spec, ucurr->phys);
+
+        unonl_func(unonl, ucurr, m*dt);
+        integrate_func2(u, ucurr, unew, unonl, IFu, IFuh, dt);
+        BwdTrans(mesh, ucurr->spec, ucurr->phys);
+        
+        unonl_func(unonl, ucurr, m*dt);
+        integrate_func3(u, ucurr, unew, unonl, IFu, IFuh, dt);
+        BwdTrans(mesh, ucurr->spec, ucurr->phys);
+        
+        unonl_func(unonl, ucurr, m*dt);
+        integrate_func4(u, ucurr, unew, unonl, IFu, IFuh, dt);
+        BwdTrans(mesh, ucurr->spec, ucurr->phys);
+        
+        unonl_func(unonl, ucurr, m*dt);
+        SpecSet<<<mesh->dimGridsp, mesh->dimBlocksp>>>(u->spec, unew->spec, mesh->Nxh, mesh->Ny, mesh->BSZ);
+        
+        if (m%20000 == 0){
+            BwdTrans(mesh, u->spec, u->phys);
+            cout<<"t: " << m*dt << "  " << u->phys[5] << endl;
+        }
+    }
     
-    cuda_error_func( cudaDeviceSynchronize() );
-    cout << "after func1" << endl;
-    print_spec(unew);
-
-
-
-
     return 0;
 }

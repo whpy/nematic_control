@@ -34,9 +34,9 @@ void integrate_func1(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_
     if(i < Nxh && j < Ny){
         cuComplex an = spec_nonl[index]*dt;
         // u_{n+1} = u_{n}*exp(alpha * dt) + 1/6*exp(alpha*dt)*(a_n)
-        spec_new[index] = spec_new[index] + 1./6.*IF[index] * an;
+        spec_new[index] = spec_new[index] + 1.f/6.f*IF[index] * an;
         // (u_{n}+a_{n}/2)*exp(alpha*dt/2)
-        spec_curr[index] = (spec_old[index]+an/2.) * IFh[index];
+        spec_curr[index] = (spec_old[index]+an/2.f) * IFh[index];
     }
 }
 __global__ void integrate_func2(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_new, 
@@ -49,9 +49,9 @@ __global__ void integrate_func2(cuComplex* spec_old, cuComplex* spec_curr, cuCom
     if(i < Nxh && j < Ny){
         cuComplex bn = spec_nonl[index]*dt;
         // u_{n+1} = u_{n}*exp(alpha * dt) + 1/6*exp(alpha*dt)*(a_n) + 1/6*exp(alpha*dt/2)*(b_n)
-        spec_new[index] = spec_new[index] + 1./3.*IFh[index] * bn;
+        spec_new[index] = spec_new[index] + 1.f/3.f*IFh[index] * bn;
         // (u_{n}*exp(alpha*dt/2) + b_{n}/2)
-        spec_curr[index] = (spec_old[index]*IFh[index] + bn/2.) ;
+        spec_curr[index] = (spec_old[index]*IFh[index] + bn/2.f) ;
     }
 }
 __global__ void integrate_func3(cuComplex* spec_old, cuComplex* spec_curr, cuComplex* spec_new, 
@@ -65,7 +65,7 @@ __global__ void integrate_func3(cuComplex* spec_old, cuComplex* spec_curr, cuCom
         cuComplex cn = spec_nonl[index]*dt;
         // u_{n+1} = u_{n}*exp(alpha * dt) + 1/6*exp(alpha*dt)*(a_n) + 1/3*exp(alpha*dt/2)*(b_n) 
         //         + 1/3*exp(alpha*dt/2)*(c_n)
-        spec_new[index] = spec_new[index] + 1./3.*IFh[index] * cn;
+        spec_new[index] = spec_new[index] + 1.f/3.f*IFh[index] * cn;
         // u_{n}*exp(alpha*dt) + c_{n} * exp(alpha*dt/2)
         spec_curr[index] = (spec_old[index]*IF[index] + cn*IFh[index]) ;
     }
@@ -81,7 +81,7 @@ __global__ void integrate_func4(cuComplex* spec_old, cuComplex* spec_curr, cuCom
         cuComplex dn = spec_nonl[index]*dt;
         // u_{n+1} = u_{n}*exp(alpha * dt) + 1/6*exp(alpha*dt)*(a_n) + 1/3*exp(alpha*dt/2)*(b_n) 
         //         + 1/3*exp(alpha*dt/2)*(c_n) + 1/6*d_n
-        spec_new[index] = spec_new[index] + 1./6.*dn;
+        spec_new[index] = spec_new[index] + 1.f/6.f*dn;
     }
 
 }

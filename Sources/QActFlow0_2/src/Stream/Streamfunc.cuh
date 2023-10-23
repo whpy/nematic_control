@@ -23,29 +23,29 @@ void wlin_func(float* IFwh, float* IFw, float* k_squared, float Re, float cf, fl
 __global__ 
 void S_funcD(float* r1, float*r2, float* S, int Nx, int Ny);
 void S_func(Field* r1, Field* r2, Field*S);
-void curr_func(Field r1curr, Field r2curr, Field wcurr, Field u, Field v, Field S);
+void curr_func(Field *r1curr, Field *r2curr, Field *wcurr, Field *u, Field *v, Field *S);
 
-void r1nonl_func(Field r1nonl, Field r1nonl_appr, Field r1, Field r2, Field w, 
-                        Field u, Field v, Field S, float lambda, float cn, float Pe);
+void r1nonl_func(Field *r1nonl, Field *aux, Field *r1, Field *r2, Field *w, 
+                        Field *u, Field *v, Field *S, float lambda, float cn, float Pe);
 
-void r2nonl_func(Field r2nonl, Field r2nonl_appr, Field r1, Field r2, Field w, 
-                        Field u, Field v, Field S, float lambda, float cn, float Pe);
+void r2nonl_func(Field *r2nonl, Field *aux, Field *r1, Field *r2, Field *w, 
+                        Field *u, Field *v, Field *S, float lambda, float cn, float Pe);
 
-inline void wnonl_func(Field wnonl, Field wnonl_appr, Field appr1, Field p11, Field p12, Field p21, Field r1, Field r2, Field w, 
-                        Field u, Field v, Field alpha, Field S, float Re, float Er, float cn, float lambda);
+inline void wnonl_func(Field *wnonl, Field *aux, Field *aux1, Field *p11, Field *p12, Field *p21, Field *r1, Field *r2, Field *w, 
+                        Field *u, Field *v, Field *alpha, Field *S, float Re, float Er, float cn, float lambda);
 
-inline void pCross_func(Field p,Field appr, Field r1, Field r2);
+inline void pCross_func(Field *p,Field *aux, Field *r1, Field *r2);
 
-inline void pSingle_func(Field p, Field appr, Field r, Field S, Field alpha, float lambda, float cn);
+inline void pSingle_func(Field *p, Field *aux, Field *r, Field *S, Field *alpha, float lambda, float cn);
 
-inline void p11nonl_func(Field p11, Field appr, Field appr1, Field r1, Field r2, Field S, 
-                        Field alpha, float lambda, float cn);
+inline void p11nonl_func(Field *p11, Field *aux, Field *aux1, Field *r1, Field *r2, Field *S, 
+                        Field *alpha, float lambda, float cn);
 
-inline void p12nonl_func(Field p12, Field appr, Field appr1, Field r1, Field r2, Field S, 
-                        Field alpha, float lambda, float cn);
+inline void p12nonl_func(Field *p12, Field *aux, Field *aux1, Field *r1, Field *r2, Field *S, 
+                        Field *alpha, float lambda, float cn);
 
-inline void p21nonl_func(Field p21, Field appr, Field appr1, Field r1, Field r2, Field S, 
-                        Field alpha, float lambda, float cn);
+inline void p21nonl_func(Field *p21, Field *aux, Field *aux1, Field *r1, Field *r2, Field *S, 
+                        Field *alpha, float lambda, float cn);
 
 // __global__
 // void precompute_funcD(Field r1, Field r2, Field w, Field alpha, int Nx, int Ny);

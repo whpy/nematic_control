@@ -1,7 +1,6 @@
 #include <Stream/Streamfunc.cuh>
 
-namespace{
-    
+  
 __global__ void vel_funcD(cuComplex* w_spec, cuComplex* u_spec, cuComplex* v_spec, 
                             float* k_squared, float* kx, float*ky, int Nxh, int Ny, int BSZ){
     int i = blockIdx.x * BSZ + threadIdx.x;
@@ -19,18 +18,18 @@ __global__ void vel_funcD(cuComplex* w_spec, cuComplex* u_spec, cuComplex* v_spe
         v_spec[index] = kx[i]*im()*w_spec[index]/(-1.f*k_squared[index]);
     }
 }
-inline void vel_func(Field w, Field u, Field v){
-    int Nxh = w.mesh->Nxh;
-    int Ny = w.mesh->Ny;
-    int BSZ = w.mesh->BSZ;
-    float* k_squared = w.mesh->k_squared;
-    float* kx = w.mesh->kx;
-    float* ky = w.mesh->ky;
-    dim3 dimGrid = w.mesh->dimGridp;
-    dim3 dimBlock = w.mesh->dimBlockp; 
-    vel_funcD<<<dimGrid, dimBlock>>>(w.spec, u.spec, v.spec, k_squared, kx, ky, Nxh, Ny, BSZ);
-    BwdTrans(u.mesh, u.spec, u.phys);
-    BwdTrans(v.mesh, v.spec, v.phys);
+void vel_func(Field* w, Field* u, Field* v){
+    int Nxh = w->mesh->Nxh;
+    int Ny = w->mesh->Ny;
+    int BSZ = w->mesh->BSZ;
+    float* k_squared = w->mesh->k_squared;
+    float* kx = w->mesh->kx;
+    float* ky = w->mesh->ky;
+    dim3 dimGrid = w->mesh->dimGridsp;
+    dim3 dimBlock = w->mesh->dimBlocksp; 
+    vel_funcD<<<dimGrid, dimBlock>>>(w->spec, u->spec, v->spec, k_squared, kx, ky, Nxh, Ny, BSZ);
+    BwdTrans(u->mesh, u->spec, u->phys);
+    BwdTrans(v->mesh, v->spec, v->phys);
 }
 
 
@@ -68,6 +67,4 @@ void wlin_func(float* IFwh, float* IFw, float* k_squared, float Re, float cf, fl
         IFwh[index] = exp( ((-1.0*k_squared[index])-1.0) *dt/2);
         IFw[index] = exp( ((-1.0*k_squared[index])-1.0) *dt);
     }
-}
-
 }

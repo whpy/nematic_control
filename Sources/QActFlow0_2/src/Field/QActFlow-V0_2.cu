@@ -315,18 +315,18 @@ __global__ void vel_funcD(cuComplex* w_spec, cuComplex* u_spec, cuComplex* v_spe
         v_spec[index] = kx[i]*im()*w_spec[index]/(-1.f*k_squared[index]);
     }
 }
-inline void vel_func(field w, field u, field v){
-    int Nxh = w.mesh->Nxh;
-    int Ny = w.mesh->Ny;
-    float* k_squared = w.mesh->k_squared;
-    float* kx = w.mesh->kx;
-    float* ky = w.mesh->ky;
-    vel_funcD<<<dimGrid, dimBlock>>>(w.spec, u.spec, v.spec, k_squared, kx, ky, Nxh, Ny);
-    cuda_error_func( cudaPeekAtLastError() );
-    cuda_error_func( cudaDeviceSynchronize() );
-    BwdTrans(u.mesh, u.spec, u.phys);
-    BwdTrans(v.mesh, v.spec, v.phys);
-}
+// inline void vel_func(field w, field u, field v){
+//     int Nxh = w.mesh->Nxh;
+//     int Ny = w.mesh->Ny;
+//     float* k_squared = w.mesh->k_squared;
+//     float* kx = w.mesh->kx;
+//     float* ky = w.mesh->ky;
+//     vel_funcD<<<dimGrid, dimBlock>>>(w.spec, u.spec, v.spec, k_squared, kx, ky, Nxh, Ny);
+//     cuda_error_func( cudaPeekAtLastError() );
+//     cuda_error_func( cudaDeviceSynchronize() );
+//     BwdTrans(u.mesh, u.spec, u.phys);
+//     BwdTrans(v.mesh, v.spec, v.phys);
+// }
 
 // calculate the S field 
 __global__ 

@@ -8,7 +8,8 @@
 __global__ 
 void vel_funcD(cuComplex* w_spec, cuComplex* u_spec, cuComplex* v_spec, 
                             float* k_squared, float* kx, float*ky, int Nxh, int Ny);
-void vel_func(Field w, Field u, Field v);
+
+void vel_func(Field *w, Field *u, Field *v);
 
 __global__
 void r1lin_func(float* IFr1h, float* IFr1, float* k_squared, float Pe, float cn, float dt, int Nxh, int Ny, int BSZ);

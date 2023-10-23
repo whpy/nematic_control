@@ -168,8 +168,8 @@ void coord(Mesh &mesh){
 int main(){
     int BSZ = 16;
     int Ns = 1000;
-    int Nx = 512; // same as colin
-    int Ny = 512;
+    int Nx = 32; // same as colin
+    int Ny = 32;
     int Nxh = Nx/2+1;
     float Lx = 2*M_PI;
     float Ly = 2*M_PI;
@@ -236,14 +236,9 @@ int main(){
 // here r1 = cos(x+y), r2 = sin(x+y). so the exact value should be:
 // 2*(sin(x+y)*-1*cos(x+y) - cos(x+y)*-1*sin(x+y)) = 0
 
+    pCross_func(aux, aux1, r1, r2);
 
-
-
-
-
-
-
-
-
+    cuda_error_func( cudaDeviceSynchronize() );
+    field_visual(aux, "cross.csv");
     return 0;
 }

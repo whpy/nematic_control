@@ -3,75 +3,39 @@ clc;
 
 load("x.csv")
 load("y.csv")
-load("wa.csv")
-load("ua.csv")
-load("va.csv")
-load("w.csv")
-load("u.csv")
-load("v.csv")
+load("r1.csv")
+load("r2.csv")
+load("Sa.csv")
+load("S.csv")
 
 figure(1);
-contourf(x,y,wa,50,"linestyle","none")
+contourf(x,y,r1,50,"linestyle","none")
 colormap(jet)
 colorbar();
 daspect([1 1 1])
-xlabel("wa")
+xlabel("r1")
 
 figure(2);
-contourf(x,y,w,50,"linestyle","none")
+contourf(x,y,r2,50,"linestyle","none")
 colormap(jet)
 colorbar();
 daspect([1 1 1])
-xlabel("w")
+xlabel("r2")
 
 figure(3);
-contourf(x,y,ua,20,"linestyle","none")
+contourf(x,y,Sa,20,"linestyle","none")
 colormap(jet)
 colorbar();
 daspect([1 1 1])
-xlabel("ua")
+xlabel("Sa")
 
 figure(4);
-contourf(x,y,u,20,"linestyle","none")
+contourf(x,y,S,20,"linestyle","none")
 colormap(jet)
 colorbar();
 daspect([1 1 1])
-xlabel("u")
+xlabel("S")
 
-figure(5);
-contourf(x,y,va,20,"linestyle","none")
-colormap(jet)
-colorbar();
-daspect([1 1 1])
-xlabel("va")
-
-figure(6);
-contourf(x,y,v,20,"linestyle","none")
-colormap(jet)
-colorbar();
-daspect([1 1 1])
-xlabel("v")
-
-figure(7);
-contourf(x,y,wa-w,20,"linestyle","none")
-colormap(jet)
-colorbar();
-daspect([1 1 1])
-xlabel("werr")
-
-figure(8);
-contourf(x,y,ua-u,20,"linestyle","none")
-colormap(jet)
-colorbar();
-daspect([1 1 1])
-xlabel("uerr")
-
-figure(9);
-contourf(x,y,va-v,20,"linestyle","none")
-colormap(jet)
-colorbar();
-daspect([1 1 1])
-xlabel("verr")
 
 % figure(4);
 % ana = r;

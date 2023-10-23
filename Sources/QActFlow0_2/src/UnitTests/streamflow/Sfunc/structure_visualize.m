@@ -3,38 +3,44 @@ clc;
 
 load("x.csv")
 load("y.csv")
+load("u.csv")
+load("v.csv")
+load("ua.csv")
+load("va.csv")
+load("w.csv")
+load("wa.csv")
 load("r1.csv")
 load("r2.csv")
 load("Sa.csv")
 load("S.csv")
 
 figure(1);
-contourf(x,y,r1,50,"linestyle","none")
+contourf(x,y,w-wa,50,"linestyle","none")
 colormap(jet)
 colorbar();
 daspect([1 1 1])
-xlabel("r1")
+xlabel("werr")
 
 figure(2);
-contourf(x,y,r2,50,"linestyle","none")
+contourf(x,y,v-va,50,"linestyle","none")
 colormap(jet)
 colorbar();
 daspect([1 1 1])
-xlabel("r2")
+xlabel("verr")
 
 figure(3);
-contourf(x,y,Sa,20,"linestyle","none")
+contourf(x,y,u-ua,20,"linestyle","none")
 colormap(jet)
 colorbar();
 daspect([1 1 1])
-xlabel("Sa")
+xlabel("uerr")
 
 figure(4);
-contourf(x,y,S,20,"linestyle","none")
+contourf(x,y,S-Sa,20,"linestyle","none")
 colormap(jet)
 colorbar();
 daspect([1 1 1])
-xlabel("S")
+xlabel("Serr")
 
 
 % figure(4);

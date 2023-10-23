@@ -21,8 +21,8 @@ __global__
 void wlin_func(float* IFwh, float* IFw, float* k_squared, float Re, float cf, float dt, int Nxh, int Ny, int BSZ);
 
 __global__ 
-void S_func(float* r1, float*r2, float* S, int Nx, int Ny);
-
+void S_funcD(float* r1, float*r2, float* S, int Nx, int Ny);
+void S_func(Field* r1, Field* r2, Field*S);
 void curr_func(Field r1curr, Field r2curr, Field wcurr, Field u, Field v, Field S);
 
 void r1nonl_func(Field r1nonl, Field r1nonl_appr, Field r1, Field r2, Field w, 
@@ -47,8 +47,8 @@ inline void p12nonl_func(Field p12, Field appr, Field appr1, Field r1, Field r2,
 inline void p21nonl_func(Field p21, Field appr, Field appr1, Field r1, Field r2, Field S, 
                         Field alpha, float lambda, float cn);
 
-__global__
-void precompute_funcD(Field r1, Field r2, Field w, Field alpha, int Nx, int Ny);
+// __global__
+// void precompute_funcD(Field r1, Field r2, Field w, Field alpha, int Nx, int Ny);
 
 
 #endif // end of __STREAMFUNC_CUH

@@ -157,7 +157,7 @@ int main(){
     field_visual(ua, "ua.csv");
     field_visual(va, "va.csv");
     
-    // evaluate the spectral
+    // evaluate the spectral of w: Laplacian( Four(\phi) )
     laplacian_func(phi->spec, w->spec, mesh);
     // switch back
     BwdTrans(mesh, w->spec, w->phys);

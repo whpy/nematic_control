@@ -32,7 +32,7 @@ void vel_func(Field* w, Field* u, Field* v){
 }
 
 __global__ 
-void S_funcD(float* r1, float*r2, float* S, int Nx, int Ny, int BSZ){
+void S_funcD(float* r1, float* r2, float* S, int Nx, int Ny, int BSZ){
     int i = blockIdx.x * BSZ + threadIdx.x;
     int j = blockIdx.y * BSZ + threadIdx.y;
     int index = j*Nx + i;
@@ -43,8 +43,20 @@ void S_funcD(float* r1, float*r2, float* S, int Nx, int Ny, int BSZ){
 void S_func(Field* r1, Field* r2, Field* S){
     Mesh* mesh = S->mesh;
     int Nx = mesh->Nx; int Ny = mesh->Ny; int BSZ = mesh->BSZ;
-    dim3 dimGrid = mesh->dimGridp; dim3 dimBlock;
+    dim3 dimGrid = mesh->dimGridp; dim3 dimBlock = mesh->dimBlockp;
     S_funcD<<<dimGrid, dimBlock>>>(r1->phys, r2->phys, S->phys, Nx, Ny, BSZ);
+}
+
+void curr_func(Field *r1curr, Field *r2curr, Field *wcurr, Field *u, Field *v, Field *S){
+    // obtain the physical values of velocities and r_i
+    int Nx = r1curr->mesh->Nx; int Ny = r1curr->mesh->Ny; int BSZ = r1curr->mesh->BSZ;
+    dim3 dimGrid = r1curr->mesh->dimGridp; dim3 dimBlock = r1curr->mesh->dimBlockp;
+
+    vel_func(wcurr, u, v);
+    BwdTrans(r1curr->mesh,r1curr->spec, r1curr->phys);
+    BwdTrans(r2curr->mesh,r2curr->spec, r2curr->phys);
+    // calculate the physical val of S
+    S_funcD<<<dimGrid, dimBlock>>>(r1curr->phys, r2curr->phys, S->phys, Nx, Ny, BSZ);
 }
 
 __global__
@@ -95,17 +107,27 @@ void pCross_func(Field *p, Field *aux, Field *r1, Field *r2){
     laplacian_func(r1->spec,aux->spec,aux->mesh);
     //aux->phys = /Delta(r1)
     BwdTrans(aux->mesh, aux->spec, aux->phys);
+    cuda_error_func( cudaDeviceSynchronize() );
     // p->phys = 2* r2*\Delta(r1)
+    printf("%d, %d, %d \n", dimGrid.x, dimGrid.y, dimGrid.z);
+    printf("%d, %d, %d \n", dimBlock.x, dimBlock.y, dimBlock.z);
+    printf("%f\n", r2->phys[1000]);
     FldMul<<<dimGrid, dimBlock>>>(aux->phys,r2->phys, 2.f, p->phys, Nx, Ny, BSZ);
+    cuda_error_func( cudaDeviceSynchronize() );
+    printf("first: %f\n", p->phys[1000]);
+
     //aux.spec = Four(/Delta(r2))
-    laplacian_func(r1->spec,aux->spec,aux->mesh);
+    laplacian_func(r2->spec,aux->spec,aux->mesh);
     //aux->phys = /Delta(r2)
     BwdTrans(aux->mesh, aux->spec, aux->phys);
-    // aux->phys = -2* r2*\Delta(r1)
-    FldMul<<<dimGrid, dimBlock>>>(aux->phys,r2->phys, -2., aux->phys, Nx, Ny, BSZ);
+    // aux->phys = -2* r1*\Delta(r2)
+    FldMul<<<dimGrid, dimBlock>>>(aux->phys,r1->phys, -2., aux->phys, Nx, Ny, BSZ);
+    cuda_error_func( cudaDeviceSynchronize() );
+    printf("second: %f\n", aux->phys[1000]);
     // p.phys = aux.phys + p.phys = -2* r2*\Delta(r1) + 2* r2*\Delta(r1)
     FldAdd<<<dimGrid, dimBlock>>>(1.f, p->phys, 1.f, aux->phys, p->phys, Nx, Ny, BSZ);
     cuda_error_func( cudaDeviceSynchronize() );
+    printf(": %f\n", p->phys[1000]);
     // cross term physical value update successfully
 }
 

@@ -6,6 +6,20 @@
  *******************************************************************************/
 // operators for field solvers
 // divide a factor after transforming from spectral to physical
+__global__
+// generate the 0-1 sequence to consider which frequency to be deprecated
+void cutoff_func(float* cutoff, int Nxh, int Ny, int BSZ);
+// deprecate the high frequencies determined by the cutoff array
+__global__
+void dealiasing_func(cuComplex* f_spec, float* cutoff,int Nxh, int Ny, int BSZ){
+    int i = blockIdx.x * BSZ + threadIdx.x;
+    int j = blockIdx.y * BSZ + threadIdx.y;
+    int index = j*Nxh + i;
+    if (i<Nxh && j<Ny){
+        f_spec[index] = cutoff[index]*f_spec[index];
+    }
+}
+
 __global__ void coeff(float *f, int Nx, int Ny, int BSZ){
     int i = blockIdx.x * BSZ + threadIdx.x;
     int j = blockIdx.y * BSZ + threadIdx.y;
@@ -13,6 +27,37 @@ __global__ void coeff(float *f, int Nx, int Ny, int BSZ){
     if(i<Nx && j<Ny){
         f[index] = f[index]/(Nx*Ny);
     }
+}
+
+// in the referenced code, this function occurs more frequently than the dealiasing,
+// it is applied after each time the nonlinear function is called. so maybe it is the
+// main reason to retain the numerical precision.
+__global__
+void symmetry_func(cuComplex f_spec[], int Nxh, int Ny, int BSZ)
+{
+	int i = blockIdx.x * BSZ + threadIdx.x;
+    int j = blockIdx.y * BSZ + threadIdx.y;
+    int index = j*Nxh + i;
+	
+	// We make sure that the transformed array keeps the necessary symmetry for
+	// RFT. (The 1st column should consist of pairs of complex conjugates.)
+	// the first column due to the zero value of wavenumver in x, the sequence
+	// degenerates to the trivial one-dimensional dft which need to fulfil symmetry
+	// here size equal to (Nx/2+1)*Ny where the size of wave numbers.
+	cuComplex mean_value{ 0.f, 0.f };
+    if (i==0 && 0<j && j<Ny/2){
+        // printf("%d, %d \n",i,j);
+        int index2 = (Ny-j)*Nxh + i;
+        mean_value = 0.5f * (f_spec[index] + cuConjf(f_spec[index2]));
+        f_spec[index] = mean_value;
+        f_spec[index2] = mean_value;
+    }
+	// for( int y{(index+1)*Nxh}; y<(Ny/2*Nxh); y+=stride*Nxh )
+	// {
+	// 	mean_value = 0.5f * ( w_new_comp[y] + cuConjf(w_new_comp[size-y]) );
+	// 	w_new_comp[y] = mean_value;
+	// 	w_new_comp[size-y] = cuConjf(mean_value);
+	// }
 }
 
 //update the spectral space based on the value in physical space
@@ -24,8 +69,13 @@ void FwdTrans(Mesh* pmesh, float* phys, cuComplex* spec){
 //update the physics space based on the value in spectral space
 void BwdTrans(Mesh* pmesh, cuComplex* spec, float* phys){
     int Nx = pmesh->Nx;
+    int Nxh = pmesh->Nxh;
     int Ny = pmesh->Ny;
     int BSZ = pmesh->BSZ;
+    // dim3 dimGrid = pmesh->dimGridsp;
+    // dim3 dimBlock = pmesh->dimBlocksp;
+    float* cutoff = pmesh->cutoff;
+    // dealiasing_func<<<dimGrid, dimBlock>>>(spec, cutoff, Nxh, Ny, BSZ);
     cufft_error_func( cufftExecC2R(pmesh->inv_transf, spec, phys));
     cuda_error_func( cudaDeviceSynchronize() );
     dim3 dimGrid = pmesh->dimGridp;

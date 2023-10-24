@@ -13,13 +13,18 @@
 /*******************************************************************
 General functions
 *********************************************************************/
-__global__
+
 // generate the 0-1 sequence to consider which frequency to be deprecated
+__global__
 void cutoff_func(float* cutoff, int Nxh, int Ny, int BSZ);
 // deprecate the high frequencies determined by the cutoff array
 __global__
 void dealiasing_func(cuComplex* f_spec, float* cutoff,int Nxh, int Ny, int BSZ);
-
+// in the referenced code, this function occurs more frequently than the dealiasing,
+// it is applied after each time the nonlinear function is called. so maybe it is the
+// main reason to retain the numerical precision.
+__global__
+void symmetry_func(cuComplex f_spec[], int Nxh, int Ny, int BSZ);
 void FwdTrans(Mesh* pmesh, float* phys, cuComplex* spec);
 void BwdTrans(Mesh* pmesh, cuComplex* spec, float* phys);
 

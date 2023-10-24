@@ -133,8 +133,8 @@ void coord(Mesh &mesh){
 int main(){
     int BSZ = 16;
     int Ns = 1000;
-    int Nx = 512; // same as colin
-    int Ny = 512;
+    int Nx = 2048; // same as colin
+    int Ny = 2048;
     int Nxh = Nx/2+1;
     float Lx = 2*M_PI;
     float Ly = 2*M_PI;

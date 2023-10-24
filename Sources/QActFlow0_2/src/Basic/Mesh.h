@@ -16,6 +16,8 @@ public:
     float *kx; float *ky; float* k_squared;
     // \alpha_{i} = \frac{2\pi}{L_{i}}, which determines the wavenumber factor while deriving
     float alphax; float alphay; 
+    // filter to cut off the high frequencies
+    float* cutoff;
 
     cufftHandle transf;
     cufftHandle inv_transf;

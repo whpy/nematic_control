@@ -13,9 +13,15 @@
 /*******************************************************************
 General functions
 *********************************************************************/
+__global__
+// generate the 0-1 sequence to consider which frequency to be deprecated
+void cutoff_func(float* cutoff, int Nxh, int Ny, int BSZ);
+// deprecate the high frequencies determined by the cutoff array
+__global__
+void dealiasing_func(cuComplex* f_spec, float* cutoff,int Nxh, int Ny, int BSZ);
+
 void FwdTrans(Mesh* pmesh, float* phys, cuComplex* spec);
 void BwdTrans(Mesh* pmesh, cuComplex* spec, float* phys);
-__global__ void coeff(float *f, int Nx, int Ny, int BSZ);
 
 // __Device: phys Field multiplication: pc(x) = C*pa(x,y)*pb(x,y). prefix p denotes physical
 __global__ void FldMul(float* pa, float* pb, float C, float* pc, int Nx, int Ny, int BSZ);

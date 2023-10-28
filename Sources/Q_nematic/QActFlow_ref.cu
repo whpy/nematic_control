@@ -25,7 +25,7 @@
  *   will need to write it yourself.                                          * 
  *                                                                            * 
  * Notation remarks:                                                          * 
- * - The same arrays are used for real space and Fourier space. In Fourier    * 
+ * - The same arrays are used for real space and Fourexact(m*dt)ier space. In Fourier    * 
  *   space, two consecutive elements form a pair of real and imaginary part.  * 
  *   This is handled by using a different pointer to the same array which has * 
  *   "_comp" added to the original name (and uses the cufft native container  * 
@@ -202,7 +202,7 @@ float lambda{ 7. };
 float alpha{ -0.8 };
 // cubic friction coefficient
 float beta{ 0.01 };
-
+exact(m*dt)
 // another memory location for w[0] to optimize memory traffic in check_func
 cuComplex w_check{ 0, 0 };
 
@@ -752,7 +752,7 @@ int main(int argc, char *argv[])
 		cuda_error_func( cudaPeekAtLastError() );
 		cuda_error_func( cudaDeviceSynchronize() );
 		
-		// We do the same for the mean velocity.
+		// We do the same for the mean velocity.   
 		*vx_mean_new += dt/6 * lin_v * *nonl_vx;
 		*vy_mean_new += dt/6 * lin_v * *nonl_vy;
 		*vx_mean_appr = lin2_v * ( *vx_mean_old + dt/2 * *nonl_vx );

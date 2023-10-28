@@ -32,6 +32,9 @@ void field_visual(Field *f, string name){
     fval.close();
 }
 
+float exact(float t){
+    return -1.f - 1.f/(t+1.f);
+}
 // du/dt = u^2 + 2*u + 1 = L(u) + NL(u),
 // L(u) = 2*u, NL(u) = u^2+1
 __global__
@@ -91,15 +94,15 @@ void print_phys(Field* f){
 // the exact solution should be u = c0*exp(-t), c0 depends on initial conditon.
 int main(){
     int BSZ = 16;
-    int Ns = 50000000;
-    int Nx = 8; // same as colin
-    int Ny = 8;
+    int Ns = 5000000;
+    int Nx = 512; // same as colin
+    int Ny = 512;
     int Nxh = Nx/2+1;
     float Lx = 2*M_PI;
     float Ly = 2*M_PI;
     float dx = 2*M_PI/Nx;
     float dy = 2*M_PI/Ny;
-    float dt = 0.00005; // same as colin
+    float dt = 0.0005; // same as colin
     float a = 1.0;
 
     // Fldset test
@@ -122,14 +125,14 @@ int main(){
     // initialize the spectral space of u 
     FwdTrans(mesh, u->phys, u->spec);
     cuda_error_func( cudaDeviceSynchronize() );
-    print_phys(u);
+    // print_phys(u);
 
     cout << "b4 nonl the unonl"<<endl;
-    print_phys(unonl);
+    // print_phys(unonl);
     unonl_func(unonl, u, 0.f);
     cuda_error_func( cudaDeviceSynchronize() );
     cout << "after nonl the unonl"<<endl;
-    print_phys(unonl);
+    // print_phys(unonl);
 
     m++;
     for(;m<Ns;m++){
@@ -157,9 +160,10 @@ int main(){
         unonl_func(unonl, ucurr, m*dt);
         SpecSet<<<mesh->dimGridsp, mesh->dimBlocksp>>>(u->spec, unew->spec, mesh->Nxh, mesh->Ny, mesh->BSZ);
         
-        if (m%20000 == 0){
+        if (m%200 == 0){
             BwdTrans(mesh, u->spec, u->phys);
-            cout<<"t: " << m*dt << "  " << u->phys[5] << endl;
+            printf("t: %f    val:%.8f   exa:%.8f    err: %.8f \n",m*dt,  u->phys[5],exact(m*dt), u->phys[5]-exact(m*dt));
+            // cout<<"t: " << m*dt << "  " << u->phys[5] << endl;
         }
     }
     

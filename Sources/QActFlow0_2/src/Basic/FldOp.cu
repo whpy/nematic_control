@@ -6,9 +6,11 @@
  *******************************************************************************/
 // operators for field solvers
 // divide a factor after transforming from spectral to physical
-__global__
+
 // generate the 0-1 sequence to consider which frequency to be deprecated
+__global__
 void cutoff_func(float* cutoff, int Nxh, int Ny, int BSZ);
+
 // deprecate the high frequencies determined by the cutoff array
 __global__
 void dealiasing_func(cuComplex* f_spec, float* cutoff,int Nxh, int Ny, int BSZ){
@@ -72,15 +74,13 @@ void BwdTrans(Mesh* pmesh, cuComplex* spec, float* phys){
     int Nxh = pmesh->Nxh;
     int Ny = pmesh->Ny;
     int BSZ = pmesh->BSZ;
-    // dim3 dimGrid = pmesh->dimGridsp;
-    // dim3 dimBlock = pmesh->dimBlocksp;
     float* cutoff = pmesh->cutoff;
-    // dealiasing_func<<<dimGrid, dimBlock>>>(spec, cutoff, Nxh, Ny, BSZ);
+    // adjust the spectral to satisfy necessary constraints(symmetry, dealiasing only 
+    // acts after the nonlinear operations)
+    symmetry_func<<<pmesh->dimGridsp, pmesh->dimBlocksp>>>(spec,Nxh, Ny, BSZ);
+
     cufft_error_func( cufftExecC2R(pmesh->inv_transf, spec, phys));
-    cuda_error_func( cudaDeviceSynchronize() );
-    dim3 dimGrid = pmesh->dimGridp;
-    dim3 dimBlock = pmesh->dimBlockp;
-    coeff<<<dimGrid, dimBlock>>>(phys, Nx, Ny, BSZ);
+    coeff<<<pmesh->dimGridp, pmesh->dimBlockp>>>(phys, Nx, Ny, BSZ);
     // in the referenced source code, they seem a little bit abuse synchronization, this
     // may be a point that we could boost the performance in the future. we temporarily
     // comply with the same principle that our code would at least perform no worse than theirs
@@ -290,7 +290,7 @@ void laplacian_funcD(cuComplex *ft, cuComplex *lft, float* k_squared, int Nxh, i
     int index = i + j*Nxh;
     if(i<Nxh && j<Ny){
         // \hat{Dxx(u) + Dyy(u)} = -1*(kx^2 + ky^2)*\hat{u}
-        lft[index] = -1* k_squared[index]*ft[index]; 
+        lft[index] = -1.f* k_squared[index]*ft[index]; 
     }
 }
 void laplacian_func(cuComplex *ft, cuComplex *lft, Mesh* mesh){

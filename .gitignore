@@ -6,4 +6,6 @@
 /Sources/**/test/
 console/*
 **/Makefile
+**/*.o
+
 

@@ -41,11 +41,28 @@ __global__ void sin_func(float* fp, float dx, float dy, int Nx, int Ny, int BSZ)
     }
 }
 
+void coord(Mesh &mesh){
+    ofstream xcoord("x.csv");
+    ofstream ycoord("y.csv");
+    for (int j=0; j<mesh.Ny; j++){
+        for ( int i=0; i< mesh.Nx; i++){
+            float x = mesh.dx*i;
+            float y = mesh.dy*j;
+            xcoord << x << ",";
+            ycoord << y << ",";
+        }
+        xcoord << endl;
+        ycoord << endl;
+    }
+    xcoord.close();
+    ycoord.close();
+}
+
 int main(){
     int BSZ = 16;
     int Ns = 1000;
-    int Nx = 512; // same as colin
-    int Ny = 512;
+    int Nx = 512*3/2; // same as colin
+    int Ny = 512*3/2;
     int Nxh = Nx/2+1;
     float Lx = 2*M_PI;
     float Ly = 2*M_PI;
@@ -56,6 +73,7 @@ int main(){
 
     // Fldset test
     Mesh *mesh = new Mesh(BSZ, Nx, Ny, Lx, Ly);
+    coord(*mesh);
     Field *u = new Field(mesh);
     Field *v = new Field(mesh);
     Field *w = new Field(mesh);
@@ -82,14 +100,15 @@ int main(){
     BwdTrans(mesh, v->spec, v->phys);
     cuda_error_func( cudaDeviceSynchronize());
     field_visual(v ,"v2.csv");
+    // v2.csv should be equal to u3.csv here
 
-    //specset inplace test
+    //specset in-place test
     SpecSet<<<mesh->dimGridp, mesh->dimBlockp>>>(v->spec, make_cuComplex(0., 0.), mesh->Nxh, mesh->Ny, mesh->BSZ);
     BwdTrans(mesh, v->spec, v->phys);
     cuda_error_func( cudaDeviceSynchronize());
     field_visual(v ,"v3.csv");
 
-    //specadd inplace test
+    //Specadd in-place test
     // v = -u should be
     FwdTrans(mesh, u->phys, u->spec);
     SpecAdd<<<mesh->dimGridp, mesh->dimBlockp>>>(1., v->spec, -1., u->spec, v->spec, mesh->Nxh, mesh->Ny, mesh->BSZ); 
